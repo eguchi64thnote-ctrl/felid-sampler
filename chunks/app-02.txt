@@ -11,12 +11,12 @@ const MATERIALS=new Map();
 const ORIGINAL_GROUP='g-magic-hour';
 const IN_GROUP='g-in';
 GROUPS.set(ORIGINAL_GROUP,{id:ORIGINAL_GROUP,name:'FeLid / Magic Hour',active:true,weight:1,builtin:true});
-GROUPS.set(IN_GROUP,{id:IN_GROUP,name:'FeLid / In',active:false,weight:1,builtin:true});
+GROUPS.set(IN_GROUP,{id:IN_GROUP,name:'FeLid / In',active:true,weight:1,builtin:true});
 const MAGIC_TITLES=["Karesansui in the air #2","Hello, World","Magic hour (disco)","Environmental Mood","Rotate Dub","Yuudachi Dub #2","Akirame Mo Kanzin","Harmonics Dub #2","Sense of Gradation"];
 const IN_TITLES=["S S T L","Entrance","SamplingTrip","0 93 mph","Recovery","Route 999","Focus","Past","HyperTeleport","Continue"];
 for(let t=1;t<=MAGIC_TITLES.length;t++){
   const id='builtin-mh-'+t;
-  MATERIALS.set(id,{id,name:MAGIC_TITLES[t-1],groupId:ORIGINAL_GROUP,enabled:(t===1||t===6),builtin:true,sampleIndices:[]});
+  MATERIALS.set(id,{id,name:MAGIC_TITLES[t-1],groupId:ORIGINAL_GROUP,enabled:true,builtin:true,sampleIndices:[]});
 }
 for(let t=1;t<=IN_TITLES.length;t++){
   const id='builtin-in-'+t;
