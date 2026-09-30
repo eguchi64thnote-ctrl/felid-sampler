@@ -29,7 +29,7 @@ function syncMobileDock(){
   if(w){w.innerHTML=evolving?'RANDOM<br>WALK ON':'RANDOM<br>WALK';w.classList.toggle('mobileOn',evolving)}
   if(r){r.innerHTML=rhythmOn?'RHYTHM<br>ON':'RHYTHM<br>OFF';r.classList.toggle('mobileOn',rhythmOn)}
 }
-$('#mobilePlay')?.addEventListener('click',async()=>{await unlockIOSAudio();$('#play').click();setTimeout(syncMobileDock,20)});
+$('#mobilePlay')?.addEventListener('click',()=>{running?stop():start();setTimeout(syncMobileDock,20)});
 $('#mobileWalk')?.addEventListener('click',()=>{$('#evolve').click();syncMobileDock()});
 $('#mobileRhythm')?.addEventListener('click',()=>{$('#rhythmToggle').click();syncMobileDock()});
 for(const id of ['play','evolve','continuousRandom','rhythmToggle'])$('#'+id)?.addEventListener('click',()=>setTimeout(syncMobileDock,20));
@@ -40,7 +40,7 @@ const installDismissed=sessionStorage.getItem('felidInstallHintDismissed')==='1'
 if(isiPhoneLike&&!standalone&&!installDismissed){const h=$('#iosInstallHint');if(h)h.style.display='block'}
 $('#closeInstallHint')?.addEventListener('click',()=>{sessionStorage.setItem('felidInstallHintDismissed','1');$('#iosInstallHint').style.display='none'});
 
-if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',async()=>{try{const reg=await navigator.serviceWorker.register('./sw.js');reg.update().catch(()=>{})}catch(e){console.warn('service worker',e)}});
 
 // ---------- visual ----------
 const canvas=$('#scope'),cc=canvas.getContext('2d');let freq=null;
