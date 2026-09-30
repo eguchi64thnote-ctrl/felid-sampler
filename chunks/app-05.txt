@@ -15,18 +15,34 @@ const recentSigs=new Set(), sigQueue=[];
 
 function makeImpulse(seconds=4.2,decay=3.1){const len=Math.floor(ctx.sampleRate*seconds),b=ctx.createBuffer(2,len,ctx.sampleRate);for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<len;i++){const x=1-i/len;d[i]=(rand()*2-1)*Math.pow(x,decay)}}return b}
 function makeNoise(seconds=1){const len=Math.floor(ctx.sampleRate*seconds),b=ctx.createBuffer(1,len,ctx.sampleRate),d=b.getChannelData(0);for(let i=0;i<len;i++)d[i]=rand()*2-1;return b}
-async function initAudio(){if(ctx)return;ctx=new (window.AudioContext||window.webkitAudioContext)();
+function initAudio(){if(ctx)return ctx;const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)throw new Error('Web Audio is not supported');ctx=new AudioCtx();
   master=ctx.createGain();master.gain.value=0.0001;compressor=ctx.createDynamicsCompressor();compressor.threshold.value=-16;compressor.knee.value=18;compressor.ratio.value=4;compressor.attack.value=.006;compressor.release.value=.2;
   analyser=ctx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.84;
   dryGain=ctx.createGain();ambientBus=ctx.createGain();rhythmSampleBus=ctx.createGain();eightOhEightBus=ctx.createGain();rhythmDelaySend=ctx.createGain();rhythmReverbSend=ctx.createGain();delayNode=ctx.createDelay(2.5);delayGain=ctx.createGain();feedbackGain=ctx.createGain();convolver=ctx.createConvolver();reverbGain=ctx.createGain();convolver.buffer=makeImpulse();noiseBuffer=makeNoise(1.2);
   ambientBus.connect(dryGain);ambientBus.connect(delayNode);ambientBus.connect(convolver);
   for(const role of ['kick','snare','hat','perc']){rhythmRoleBuses[role]=ctx.createGain();rhythmRoleBuses[role].connect(rhythmSampleBus);e808RoleBuses[role]=ctx.createGain();e808RoleBuses[role].connect(eightOhEightBus)}e808RoleBuses.bass=ctx.createGain();e808RoleBuses.bass.connect(eightOhEightBus);
   rhythmSampleBus.connect(dryGain);rhythmSampleBus.connect(rhythmDelaySend).connect(delayNode);rhythmSampleBus.connect(rhythmReverbSend).connect(convolver);eightOhEightBus.connect(dryGain);
-  dryGain.connect(compressor);delayNode.connect(delayGain).connect(compressor);delayNode.connect(feedbackGain).connect(delayNode);convolver.connect(reverbGain).connect(compressor);compressor.connect(master).connect(analyser).connect(ctx.destination);applyGlobals();
+  dryGain.connect(compressor);delayNode.connect(delayGain).connect(compressor);delayNode.connect(feedbackGain).connect(delayNode);convolver.connect(reverbGain).connect(compressor);compressor.connect(master).connect(analyser).connect(ctx.destination);applyGlobals();return ctx;
 }
 function base64ToArrayBuffer(s){const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u.buffer}
-async function decodeOne(i){if(buffers[i])return;const d=SAMPLE_DATA[i];if(!d)return;try{let ab;if(d.data){ab=base64ToArrayBuffer(d.data);d.data=null}else if(d.url){const r=await fetch(d.url);if(!r.ok)throw new Error('HTTP '+r.status+' '+d.url);ab=await r.arrayBuffer()}else{return}buffers[i]=await ctx.decodeAudioData(ab);decodedCount++;updateLoadCount()}catch(e){console.error('decode',i,e)}}
-async function decodeInitial(){const first=[];for(const mat of MATERIALS.values()){const g=GROUPS.get(mat.groupId);if(!mat.builtin||!mat.enabled||!g||!g.active)continue;const i=mat.sampleIndices.find(ix=>ix<BUILTIN_TOTAL);if(i>=0)first.push(i)}if(first.every(i=>buffers[i]))return;$('#status').textContent='PREPARING ACTIVE SOURCES…';for(const i of first)await decodeOne(i);$('#status').textContent='READY — FeLid sources';}
+async function decodeOne(i){if(buffers[i])return true;const d=SAMPLE_DATA[i];if(!d)return false;try{let ab;if(d.data){ab=base64ToArrayBuffer(d.data);d.data=null}else if(d.url){const r=await fetch(d.url,{cache:'force-cache'});if(!r.ok)throw new Error('HTTP '+r.status+' '+d.url);ab=await r.arrayBuffer()}else{return false}buffers[i]=await ctx.decodeAudioData(ab);decodedCount++;updateLoadCount();return true}catch(e){console.error('decode',i,e);return false}}
+function activeInitialCandidates(){
+  const out=[];
+  for(const g of GROUPS.values()){
+    if(!g.active)continue;
+    const mats=[...MATERIALS.values()].filter(m=>m.groupId===g.id&&m.enabled&&m.builtin);
+    for(const mat of mats){const i=mat.sampleIndices.find(ix=>ix<BUILTIN_TOTAL);if(i>=0){out.push(i);break}}
+  }
+  return [...new Set(out)];
+}
+async function decodeInitial(){
+  const first=activeInitialCandidates();
+  if(first.some(i=>buffers[i]))return true;
+  $('#status').textContent='PREPARING AUDIO…';
+  for(const i of first){if(await decodeOne(i))return true}
+  for(let i=0;i<BUILTIN_TOTAL;i++){const d=SAMPLE_DATA[i],m=d&&MATERIALS.get(d.materialId),g=m&&GROUPS.get(m.groupId);if(g?.active&&m?.enabled&&await decodeOne(i))return true}
+  return false;
+}
 async function decodeRest(){if(backgroundDecodeStarted)return;backgroundDecodeStarted=true;for(let i=0;i<BUILTIN_TOTAL;i++){await decodeOne(i);if(i%8===0)await new Promise(r=>setTimeout(r,0))}}
 function estimateRMS(b){let sum=0,n=0;const step=Math.max(1,Math.floor(b.length/12000));for(let c=0;c<b.numberOfChannels;c++){const d=b.getChannelData(c);for(let i=0;i<d.length;i+=step){sum+=d[i]*d[i];n++}}return n?Math.sqrt(sum/n):.07}
 async function uploadFiles(files){const arr=[...files];if(!arr.length)return;await initAudio();let gid=$('#uploadGroup').value;if(!GROUPS.has(gid))gid=addGroup('USER '+(groupCounter+1));$('#status').textContent='IMPORTING '+arr.length+' AUDIO FILE'+(arr.length>1?'S':'')+'…';
