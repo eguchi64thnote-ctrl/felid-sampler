@@ -15,7 +15,7 @@
 <body>
 <div class="app">
 <header>
-  <div><h1>“Karesansui in the air” Generator<br><span class="titleSub">- Magic Hour Ver. -</span></h1><div class="sub">ambient · experimental · dub · generative rhythm · mixer · synthetic 808 layer · silence as material / built from <em>Magic Hour</em></div></div>
+  <div><h1>“Karesansui in the air” Generator<br><span class="titleSub">- Magic Hour Ver. -</span></h1><div class="sub">ambient · experimental · dub · generative rhythm · mixer · synthetic 808 layer · silence as material / built from <em>Magic Hour</em> + <em>In</em></div></div>
   <div class="transport">
     <button id="play" class="primary">PLAY</button>
     <button id="evolve" class="on">RANDOM WALK ON</button>
@@ -23,7 +23,7 @@
 </header>
 <div class="statusrow">
   <span><span id="liveDot" class="dot"></span><span id="status">READY — press PLAY</span></span>
-  <span>CELLS <span id="loadCount" class="metric">0/9</span></span>
+  <span>CELLS <span id="loadCount" class="metric">0/19</span></span>
   <span>UNIQUE EVENTS <span id="eventCount" class="metric">0</span></span>
   <span>LAST SOURCE <span id="lastSource" class="metric">—</span></span>
   <span><span id="rhythmPulse" class="rhythmPulse"></span>RHYTHM <span id="grooveStatus" class="metric">OFF</span></span>
@@ -35,7 +35,7 @@
     <div class="controls" id="mainControls"></div>
   </section>
   <aside class="panel" id="rightPanel">
-    <div class="sectionTitle">Rhythm engine / Magic Hour cuts</div>
+    <div class="sectionTitle">Rhythm engine / source cuts</div>
     <div class="rhythmBox">
       <div class="rhythmActions"><button id="rhythmToggle">RHYTHM OFF</button><button id="rhythmRandom">RHYTHM RANDOM ↝</button><button id="newGroove">NEW GROOVE</button></div>
       <div class="grooveGrid" id="grooveGrid">
@@ -48,18 +48,18 @@
         <button data-division="7">7-LET</button><button data-division="9">9-LET</button><button data-division="11">11-LET</button>
       </div>
       <div class="rhythmControls" id="rhythmControls"></div>
-      <div class="rhythmReadout">CURRENT GROOVE: <strong id="grooveBlend">AUTO / waiting</strong><br>CURRENT DIVISION: <strong id="divisionReadout">STRAIGHT / 4 per beat</strong><br><strong>CURRENT GROOVE MIX</strong> manually sets the balance between the two displayed groove grammars; GROOVE DRIFT controls how readily the groove identities change. Tuplet modes divide each quarter-note beat into 3 / 5 / 7 / 9 / 11 equal pulses; AUTO can change the division as the groove evolves. Rhythmic cuts are sliced from <em>FeLid / Magic Hour</em>. The optional 808 layer is synthesized in-browser — no external drum samples are added.</div>
+      <div class="rhythmReadout">CURRENT GROOVE: <strong id="grooveBlend">AUTO / waiting</strong><br>CURRENT DIVISION: <strong id="divisionReadout">STRAIGHT / 4 per beat</strong><br><strong>CURRENT GROOVE MIX</strong> manually sets the balance between the two displayed groove grammars; GROOVE DRIFT controls how readily the groove identities change. Tuplet modes divide each quarter-note beat into 3 / 5 / 7 / 9 / 11 equal pulses; AUTO can change the division as the groove evolves. Rhythmic cuts are sliced from whichever FeLid material groups are currently active. <em>Magic Hour</em> and <em>In</em> can be used separately or mixed together. The optional 808 layer is synthesized in-browser — no external drum samples are added.</div>
     </div>
     <div class="sectionTitle">Mixer / rhythm definition</div>
     <div class="mixerBox">
       <div class="mixerGroup">
-        <div class="mixerGroupTitle"><strong>MASTER + MAGIC HOUR CUTS</strong><span>sample-derived rhythm</span></div>
+        <div class="mixerGroupTitle"><strong>MASTER + SOURCE CUTS</strong><span>sample-derived rhythm</span></div>
         <div class="mixerGrid" id="mixerControls"></div>
       </div>
       <div class="mixerGroup">
         <div class="mixerGroupTitle"><strong>808 SYNTH LAYER</strong><span>generated tone / noise</span></div>
         <div class="mixerGrid" id="eightOhEightControls"></div>
-        <div class="mixerHint">808 MIX at 0% = pure Magic Hour cuts. Raise it slightly to reveal the pulse without replacing the source character. BASS / SUB only appears in gaps where KICK / PERC do not fire. ATTACK and RELEASE move from short, funky low notes to longer hip-hop / trap-like sub tones; TONE adds upper definition, and GAP FILL controls how often those empty spaces are used.</div>
+        <div class="mixerHint">808 MIX at 0% = pure source cuts. Raise it slightly to reveal the pulse without replacing the source character. BASS / SUB only appears in gaps where KICK / PERC do not fire. ATTACK and RELEASE move from short, funky low notes to longer hip-hop / trap-like sub tones; TONE adds upper definition, and GAP FILL controls how often those empty spaces are used.</div>
       </div>
     </div>
     <div id="randomSection"><div class="sectionTitle">Random movement</div>
@@ -73,7 +73,7 @@
     <div class="uploadBox">
       <div class="uploadRow"><input id="newGroupName" class="textInput" type="text" placeholder="NEW GROUP NAME"><button id="addGroup">ADD GROUP</button></div>
       <div class="uploadRow"><select id="uploadGroup" class="selectInput"></select><label class="fileButton">UPLOAD AUDIO<input id="audioUpload" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.aac,.ogg,.flac" multiple></label></div>
-      <div class="uploadHint">Choose a target group, then upload one or more audio files. The built-in library contains only FeLid / Magic Hour. Added files stay in this browser session.</div>
+      <div class="uploadHint">Choose a target group, then upload one or more audio files. The built-in library contains FeLid / Magic Hour and FeLid / In. Added files stay in this browser session.</div>
     </div>
     <div class="groups" id="groups"></div>
     <div class="sourceTools"><button id="allGroups">ALL GROUPS ON</button><button id="oneGroup">SOLO RANDOM GROUP</button></div>
@@ -81,7 +81,7 @@
   </aside>
 </div>
 <div class="foot">
-  RANDOM WALK continuously moves every sound parameter — ambient/silence, rhythm, mixer, and 808 — without stopping. Every sound parameter has its own editable RANDOM RANGE (MIN / MAX) and its own WALK/HOLD switch, so each control can wander forever inside a deliberately bounded musical territory or be frozen independently. TEMPO reaches 296 BPM and RHYTHM SLICE LENGTH reaches 6 seconds. RHYTHMIC DIVISION adds straight 16ths plus 3 / 5 / 7 / 9 / 11 tuplets, with an AUTO mode that can change division as the groove evolves. The mixer separates Magic Hour KICK / SNARE / HAT / PERC roles, with an optional synthesized 808 layer.<br>
+  RANDOM WALK continuously moves every sound parameter — ambient/silence, rhythm, mixer, and 808 — without stopping. Every sound parameter has its own editable RANDOM RANGE (MIN / MAX) and its own WALK/HOLD switch, so each control can wander forever inside a deliberately bounded musical territory or be frozen independently. TEMPO reaches 296 BPM and RHYTHM SLICE LENGTH reaches 6 seconds. RHYTHMIC DIVISION adds straight 16ths plus 3 / 5 / 7 / 9 / 11 tuplets, with an AUTO mode that can change division as the groove evolves. The mixer separates source-derived KICK / SNARE / HAT / PERC roles, with an optional synthesized 808 layer.<br>
   <span class="kbd">SPACE</span> play/stop &nbsp; <span class="kbd">G</span> new groove &nbsp; Groups and individual materials can be enabled independently. Each generated event receives a unique source-position/micro-detune state to prevent exact event repetition during normal use.
 </div>
 </div>
