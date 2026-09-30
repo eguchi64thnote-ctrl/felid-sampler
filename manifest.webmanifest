@@ -1,7 +1,7 @@
 {
-  "name": "FeLid Magic Hour Generator",
-  "short_name": "FeLid Generator",
-  "description": "Ambient / experimental / generative rhythm instrument built from FeLid — Magic Hour.",
+  "name": "Karesansui in the air Generator",
+  "short_name": "Karesansui",
+  "description": "A generative sound app by FeLid, built from FeLid\u2019s own music.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
