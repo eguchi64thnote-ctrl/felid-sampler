@@ -1,12 +1,3 @@
-e:.78,continuity:.86,drift:.24,pitch:1.8,swing:.09,cutoff:10800,resonance:.7,delay:.23,feedback:.36,reverb:.42,stereo:.78,level:.64},
-  dub:{tempo:94,density:.68,grain:1.65,voices:3,ma:.24,rest:3.0,fade:.30,continuity:.76,drift:.36,pitch:2.4,swing:.18,cutoff:5700,resonance:1.2,delay:.42,feedback:.59,reverb:.29,stereo:.84,level:.62},
-  experimental:{tempo:61,density:.095,grain:8.6,voices:2,ma:.86,rest:18,fade:2.1,continuity:.48,drift:.72,pitch:7.2,swing:.31,cutoff:2700,resonance:2.4,delay:.31,feedback:.53,reverb:.69,stereo:1,level:.58}
-};
-function applyPreset(name){morphState=null;const p=PRESETS[name];for(const [id,v] of Object.entries(p)){if(configs[id]){state[id]=v;syncControl(id,state,configs[id])}}globalRestUntil=0;if(ctx)nextRestCheck=ctx.currentTime+.5;applyGlobals();$('#status').textContent=(running?'GENERATING / ':'')+'PRESET '+name.toUpperCase()}
-$('#presetKaresansui').onclick=()=>applyPreset('karesansui');
-$('#presetMagic').onclick=()=>applyPreset('magic');
-$('#presetDub').onclick=()=>applyPreset('dub');
-$('#presetExperimental').onclick=()=>applyPreset('experimental');
 window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.code==='Space'){e.preventDefault();running?stop():start()}if(e.key.toLowerCase()==='g')newGroove(true)});
 
 
