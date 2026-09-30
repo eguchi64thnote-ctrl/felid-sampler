@@ -63,3 +63,23 @@ button{font-size:12px}
   .rhythmReadout,.managerNote,.mixerHint,.uploadHint{font-size:9px}
   .grooveGrid button,.divisionGrid button,.sourceBtn{font-size:9px}
 }
+
+
+/* generative VJ deck */
+.visualDeck{border-bottom:1px solid var(--line);padding:10px 14px 12px;background:#090909}
+.visualModeRow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.visualModeRow button{padding:8px 6px;font-size:9px}
+.visualModeRow button.active,#visualWalk.on{border-color:var(--accent);color:var(--accent);background:#151912}
+.visualControls{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.visualCtl{min-width:0}
+.visualCtlTop{display:flex;justify-content:space-between;gap:6px;margin-bottom:3px;font-size:8px;color:#858585;letter-spacing:.04em}
+.visualCtlTop strong{color:#bcbcb4;font-weight:500}
+.visualCtl input[type=range]{height:22px}
+@media(max-width:850px){
+  .visualDeck{padding:9px 10px 11px}
+  .visualModeRow{grid-template-columns:1fr 1fr;gap:5px}
+  .visualModeRow button{min-height:38px;font-size:8px}
+  .visualControls{grid-template-columns:1fr 1fr;gap:8px 12px}
+  .visualCtlTop{font-size:8px}
+  .visualCtl input[type=range]{height:32px}
+}
