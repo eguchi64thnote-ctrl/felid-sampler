@@ -1,4 +1,4 @@
-const CACHE='felid-magic-hour-v11-bass-no-core-overlap1';
+const CACHE='felid-magic-hour-v11-reference-defaults3';
 const ASSETS=['./','./index.html','./styles.css','./app.js',
 './chunks/app-00.txt','./chunks/app-01.txt','./chunks/app-02.txt','./chunks/app-03.txt','./chunks/app-04.txt','./chunks/app-05.txt','./chunks/app-06.txt','./chunks/app-07.txt','./chunks/app-08.txt',
 './samples/track01.mp3','./samples/track02.mp3','./samples/track03.mp3','./samples/track04.mp3','./samples/track05.mp3','./samples/track06.mp3','./samples/track07.mp3','./samples/track08.mp3','./samples/track09.mp3',
