@@ -10,28 +10,18 @@ function scheduleBassGap(when,velocity=1){
   if(!ctx||!rhythmOn||!e808RoleBuses.bass||mixerState.e808mix<.001||mixerState.e808bass<.001)return;
   const t=Math.max(when,ctx.currentTime+.006);
   const atk=clamp(mixerState.bassAttack,.002,.25),rel=clamp(mixerState.bassRelease,.04,2.2),tone=clamp(mixerState.bassTone,0,1);
-  const baseFreq=42+tone*26+(rand()-.5)*3.5;
-  const sub=ctx.createOscillator(),body=ctx.createOscillator(),edge=ctx.createOscillator();
-  const subG=ctx.createGain(),bodyG=ctx.createGain(),edgeG=ctx.createGain(),mix=ctx.createGain(),lp=ctx.createBiquadFilter(),drive=ctx.createWaveShaper();
-  sub.type='sine';body.type='triangle';edge.type=tone>.55?'sawtooth':'triangle';
-  sub.frequency.setValueAtTime(baseFreq,t);
-  body.frequency.setValueAtTime(baseFreq*2,t);
-  edge.frequency.setValueAtTime(baseFreq*3,t);
-  sub.frequency.exponentialRampToValueAtTime(Math.max(32,baseFreq*.92),t+Math.min(.09,atk+.055));
-  lp.type='lowpass';lp.frequency.setValueAtTime(150+tone*520,t);lp.Q.value=.7+tone*1.6;
-  subG.gain.value=.92;bodyG.gain.value=.10+.20*tone;edgeG.gain.value=.015+.10*tone;
-  const curve=new Float32Array(256);const amount=1.5+tone*4.5;
-  for(let i=0;i<curve.length;i++){const x=i*2/(curve.length-1)-1;curve[i]=Math.tanh(x*amount)}
-  drive.curve=curve;drive.oversample='2x';
-  const peak=.18*Math.max(.18,rhythmState.level)*velocity;
-  mix.gain.setValueAtTime(.0001,t);
-  mix.gain.exponentialRampToValueAtTime(Math.max(.00025,peak),t+atk);
-  mix.gain.exponentialRampToValueAtTime(Math.max(.00015,peak*.72),t+atk+Math.min(.08,rel*.15));
-  mix.gain.exponentialRampToValueAtTime(.0001,t+atk+rel);
-  sub.connect(subG).connect(mix);body.connect(bodyG).connect(mix);edge.connect(edgeG).connect(mix);
-  mix.connect(drive).connect(lp).connect(e808RoleBuses.bass);
-  sub.start(t);body.start(t);edge.start(t);
-  const stop=t+atk+rel+.06;sub.stop(stop);body.stop(stop);edge.stop(stop);
+  const baseFreq=36+tone*22+(rand()-.5)*3;
+  const o1=ctx.createOscillator(),o2=ctx.createOscillator(),lp=ctx.createBiquadFilter(),g=ctx.createGain(),g2=ctx.createGain();
+  o1.type='sine';o2.type=tone>.6?'triangle':'sine';
+  o1.frequency.setValueAtTime(baseFreq,t);o2.frequency.setValueAtTime(baseFreq*2,t);
+  lp.type='lowpass';lp.frequency.setValueAtTime(85+tone*250,t);lp.Q.value=.5+tone*1.2;
+  g2.gain.value=.025+.07*tone;
+  const peak=.11*Math.max(.15,rhythmState.level)*velocity;
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+atk);
+  g.gain.exponentialRampToValueAtTime(.0001,t+atk+rel);
+  o1.connect(g);o2.connect(g2).connect(g);g.connect(lp).connect(e808RoleBuses.bass);
+  o1.start(t);o2.start(t);o1.stop(t+atk+rel+.05);o2.stop(t+atk+rel+.05);
 }
 function scheduleRhythmHit(role,when,velocity=1){const i=freshMagicSample(role);if(i<0)return;const b=buffers[i],m=SAMPLE_DATA[i];const base=rhythmState.slice;const mul=role==='kick'?1.45:role==='snare'?1.05:role==='hat' ? .48 : 1.25;let outDur=clamp(base*mul*(.65+rand()*.75),.018,role==='hat' ? 2.4 : 7.5);let semis=(rand()*2-1)*rhythmState.pitch;if(role==='kick')semis-=2+rand()*4;if(role==='hat')semis+=rand()*4;semis+=(rand()-.5)*.018;const rate=Math.pow(2,semis/12),bufDur=Math.min(outDur*rate,b.duration-.01);if(bufDur<=.012)return;const off=chooseRhythmOffset(i,role,bufDur);const src=ctx.createBufferSource();src.buffer=b;src.playbackRate.value=rate;const f=ctx.createBiquadFilter();if(role==='kick'){f.type='lowpass';f.frequency.value=clamp(280+rand()*720,150,1200);f.Q.value=.7+rand()*1.3}else if(role==='hat'){f.type='highpass';f.frequency.value=2600+rand()*5200;f.Q.value=.25+rand()*.7}else if(role==='snare'){f.type='bandpass';f.frequency.value=850+rand()*3200;f.Q.value=.45+rand()*1.1}else{f.type=rand()<.5?'bandpass':'highpass';f.frequency.value=420+rand()*5200;f.Q.value=.35+rand()*1.2}const p=ctx.createStereoPanner();p.pan.value=role==='kick'?0:clamp((rand()*2-1)*(.18+.72*state.stereo),-1,1);const g=ctx.createGain();const norm=clamp(.065/Math.max(.018,m.rms||.06),.38,1.7);const roleAmp={kick:.45,snare:.35,hat:.22,perc:.27}[role];const amp=Math.max(.0002,rhythmState.level*roleAmp*norm*velocity);src.connect(f).connect(p).connect(g);g.connect(rhythmRoleBuses[role]);src.onended=()=>{try{src.disconnect();f.disconnect();p.disconnect();g.disconnect()}catch(e){}};const t=Math.max(when,ctx.currentTime+.006),atk=role==='hat' ? .0015 : .003,rel=Math.max(.012,outDur*(role==='kick' ? .72 : .88));g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(amp,t+atk);g.gain.exponentialRampToValueAtTime(.0001,t+rel);src.start(t,off,bufDur);src.stop(t+outDur+.025);schedule808Hit(role,t,velocity);if(role==='kick'||role==='perc'){lastKickPercTime=t}else if((role==='snare'||role==='hat')&&t-lastKickPercTime>Math.max(.05,(60/state.tempo)/currentDivision*.3)&&rand()<mixerState.bassGap*.5){scheduleBassGap(t+.012+rand()*.035,clamp(.45+rand()*.28,.35,.78))}eventId++;$('#eventCount').textContent=eventId.toLocaleString();flashSource(i)}
 function rhythmScheduler(now,horizon){if(!rhythmOn)return;if(!rhythmPattern)buildRhythmPattern(true);if(rhythmNextStep<now-.5)rhythmNextStep=now+.02;let guard=0;while(rhythmNextStep<horizon&&guard++<96){if(rhythmStep===0){if(rhythmBar>0)buildRhythmPattern(false);rhythmBreakBar=rand()<rhythmState.breaks*.22}const totalSteps=currentDivision*4,stepDur=(60/state.tempo)/currentDivision,step=rhythmStep,beatDrop=rand()<rhythmState.breaks*.06;const roles=['kick','snare','hat','perc'];if(!rhythmBreakBar&&!beatDrop){for(const role of roles){let p=(rhythmPattern[role]&&rhythmPattern[role][step])||0;if(rand()<rhythmState.breaks*.08)p*=.35;if(rand()<p){const vel=clamp(.65+rand()*.45+
