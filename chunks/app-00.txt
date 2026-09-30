@@ -72,7 +72,7 @@ const mixerConfigs={
   bassTone:{label:'BASS TONE',min:0,max:1,step:.01,def:.60,unit:'%',rmin:.08,rmax:.82},
   bassGap:{label:'GAP FILL',min:0,max:1,step:.01,def:.34,unit:'%',rmin:.1,rmax:.62}
 };
-const state={}, meta={}, rhythmState={}, mixerState={}, locked=new Set(), rhythmLocked=new Set(), mixerLocked=new Set();
+const state={}, meta={}, rhythmState={}, mixerState={}, locked=new Set(), rhythmLocked=new Set(), mixerLocked=new Set(['e808kick','e808bass','bassAttack','bassRelease','bassTone']);
 const randomRanges={}, rhythmRandomRanges={}, mixerRandomRanges={};
 for(const [k,c] of Object.entries(configs)){state[k]=c.def;randomRanges[k]={min:c.rmin??c.min,max:c.rmax??c.max}}
 for(const [k,c] of Object.entries(metaConfigs)) meta[k]=c.def;
