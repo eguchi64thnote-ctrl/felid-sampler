@@ -242,3 +242,10 @@ button{font-size:12px}
     clear:both;
   }
 }
+
+
+@media(max-width:640px) and (orientation:portrait){
+  #randomSection,#materialSection{min-width:0}
+  #randomSection{margin-top:18px}
+  #materialSection{margin-top:2px}
+}
