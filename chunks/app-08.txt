@@ -1,0 +1,62 @@
+e:.78,continuity:.86,drift:.24,pitch:1.8,swing:.09,cutoff:10800,resonance:.7,delay:.23,feedback:.36,reverb:.42,stereo:.78,level:.64},
+  dub:{tempo:94,density:.68,grain:1.65,voices:3,ma:.24,rest:3.0,fade:.30,continuity:.76,drift:.36,pitch:2.4,swing:.18,cutoff:5700,resonance:1.2,delay:.42,feedback:.59,reverb:.29,stereo:.84,level:.62},
+  experimental:{tempo:61,density:.095,grain:8.6,voices:2,ma:.86,rest:18,fade:2.1,continuity:.48,drift:.72,pitch:7.2,swing:.31,cutoff:2700,resonance:2.4,delay:.31,feedback:.53,reverb:.69,stereo:1,level:.58}
+};
+function applyPreset(name){morphState=null;const p=PRESETS[name];for(const [id,v] of Object.entries(p)){if(configs[id]){state[id]=v;syncControl(id,state,configs[id])}}globalRestUntil=0;if(ctx)nextRestCheck=ctx.currentTime+.5;applyGlobals();$('#status').textContent=(running?'GENERATING / ':'')+'PRESET '+name.toUpperCase()}
+$('#presetKaresansui').onclick=()=>applyPreset('karesansui');
+$('#presetMagic').onclick=()=>applyPreset('magic');
+$('#presetDub').onclick=()=>applyPreset('dub');
+$('#presetExperimental').onclick=()=>applyPreset('experimental');
+$('#reset').onclick=()=>{morphState=null;rhythmMorphState=null;mixerMorphState=null;setContinuousRandom(false);clearAllHolds();for(const [id,c] of Object.entries(configs)){state[id]=c.def;syncControl(id,state,c)}for(const [id,c] of Object.entries(metaConfigs)){meta[id]=c.def;syncControl(id,meta,c)}for(const [id,c] of Object.entries(rhythmConfigs)){rhythmState[id]=c.def;syncRhythmControl(id)}for(const [id,c] of Object.entries(mixerConfigs)){mixerState[id]=c.def;syncMixerControl(id)}resetRandomRanges();grooveFocus='auto';divisionFocus='4';currentDivision=4;updateGrooveButtons();updateDivisionButtons();newGroove(true);updateDivisionReadout();applyGlobals()};
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.code==='Space'){e.preventDefault();running?stop():start()}if(e.key.toLowerCase()==='r')allRandomMorph();if(e.key.toLowerCase()==='g')newGroove(true)});
+
+
+// ---------- v11 iPhone / PWA helpers ----------
+let screenWakeLock=null;
+async function requestScreenWakeLock(){
+  try{if('wakeLock' in navigator && running && document.visibilityState==='visible')screenWakeLock=await navigator.wakeLock.request('screen')}catch(e){}
+}
+async function releaseScreenWakeLock(){try{if(screenWakeLock){await screenWakeLock.release();screenWakeLock=null}}catch(e){}}
+async function unlockIOSAudio(){
+  try{
+    await initAudio();
+    if(ctx && ctx.state!=='running')await ctx.resume();
+    if(ctx){const b=ctx.createBuffer(1,1,ctx.sampleRate),src=ctx.createBufferSource();src.buffer=b;src.connect(ctx.destination);src.start(0)}
+  }catch(e){}
+}
+const isiPhoneLike=/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+if(isiPhoneLike){
+  window.addEventListener('pointerdown',unlockIOSAudio,{once:true,capture:true});
+  window.addEventListener('touchend',unlockIOSAudio,{once:true,capture:true});
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(running&&ctx&&ctx.state!=='running')ctx.resume().catch(()=>{});requestScreenWakeLock()}else{releaseScreenWakeLock()}});
+window.addEventListener('pageshow',()=>{if(running&&ctx&&ctx.state!=='running')ctx.resume().catch(()=>{})});
+
+function syncMobileDock(){
+  const p=$('#mobilePlay'),w=$('#mobileWalk'),r=$('#mobileRhythm');
+  if(p){p.textContent=running?'STOP':'PLAY';p.classList.toggle('mobilePrimary',!running);p.classList.toggle('mobileOn',running)}
+  if(w){w.innerHTML=evolving?'RANDOM<br>WALK ON':'RANDOM<br>WALK';w.classList.toggle('mobileOn',evolving)}
+  if(r){r.innerHTML=rhythmOn?'RHYTHM<br>ON':'RHYTHM<br>OFF';r.classList.toggle('mobileOn',rhythmOn)}
+}
+$('#mobilePlay')?.addEventListener('click',async()=>{await unlockIOSAudio();$('#play').click();setTimeout(syncMobileDock,20)});
+$('#mobileWalk')?.addEventListener('click',()=>{$('#evolve').click();syncMobileDock()});
+$('#mobileRhythm')?.addEventListener('click',()=>{$('#rhythmToggle').click();syncMobileDock()});
+$('#mobileRandom')?.addEventListener('click',()=>{$('#random').click()});
+for(const id of ['play','evolve','continuousRandom','rhythmToggle'])$('#'+id)?.addEventListener('click',()=>setTimeout(syncMobileDock,20));
+syncMobileDock();
+
+const standalone=window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+const installDismissed=sessionStorage.getItem('felidInstallHintDismissed')==='1';
+if(isiPhoneLike&&!standalone&&!installDismissed){const h=$('#iosInstallHint');if(h)h.style.display='block'}
+$('#closeInstallHint')?.addEventListener('click',()=>{sessionStorage.setItem('felidInstallHintDismissed','1');$('#iosInstallHint').style.display='none'});
+
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+
+// ---------- visual ----------
+const canvas=$('#scope'),cc=canvas.getContext('2d');let freq=null;
+function resize(){const dpr=Math.min(2,devicePixelRatio||1),r=canvas.getBoundingClientRect();canvas.width=Math.floor(r.width*dpr);canvas.height=Math.floor(r.height*dpr);cc.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
+function draw(){const w=canvas.clientWidth,h=canvas.clientHeight;cc.clearRect(0,0,w,h);cc.fillStyle='#070707';cc.fillRect(0,0,w,h);cc.strokeStyle='#1c1c1c';cc.lineWidth=1;for(let x=0;x<w;x+=48){cc.beginPath();cc.moveTo(x,0);cc.lineTo(x,h);cc.stroke()}for(let y=0;y<h;y+=36){cc.beginPath();cc.moveTo(0,y);cc.lineTo(w,y);cc.stroke()}
+  if(analyser){if(!freq||freq.length!==analyser.frequencyBinCount)freq=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(freq);cc.beginPath();for(let x=0;x<w;x++){const idx=Math.floor(Math.pow(x/w,1.55)*(freq.length-1));const a=freq[idx]/255;const y=h-10-a*(h-24);if(x===0)cc.moveTo(x,y);else cc.lineTo(x,y)}cc.strokeStyle=running?'#d9efbf':'#777';cc.lineWidth=1.25;cc.stroke();}
+  const meterValues={master:running?mixerState.master:0,sampleRhythm:rhythmOn?mixerState.sampleRhythm*rhythmState.level:0,kick:rhythmOn?mixerState.kick*rhythmState.level:0,snare:rhythmOn?mixerState.snare*rhythmState.level:0,hat:rhythmOn?mixerState.hat*rhythmState.level:0,perc:rhythmOn?mixerState.perc*rhythmState.level:0,e808mix:rhythmOn?mixerState.e808mix*rhythmState.level:0,e808kick:rhythmOn?mixerState.e808mix*mixerState.e808kick*rhythmState.level:0,e808snare:rhythmOn?mixerState.e808mix*mixerState.e808snare*rhythmState.level:0,e808hat:rhythmOn?mixerState.e808mix*mixerState.e808hat*rhythmState.level:0,e808perc:rhythmOn?mixerState.e808mix*mixerState.e808perc*rhythmState.level:0};for(const [id,v] of Object.entries(meterValues)){const el=$('#mm_'+id);if(el)el.style.width=Math.min(100,Math.max(0,v*82+(running?rand()*8:0)))+'%'}
+  requestAnimationFrame(draw)}draw();
+window.addEventListener('error',e=>{$('#status').textContent='ERROR — '+e.message;$('#liveDot').style.background='var(--danger)'});
