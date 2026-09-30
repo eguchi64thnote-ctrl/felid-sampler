@@ -52,11 +52,132 @@ $('#closeInstallHint')?.addEventListener('click',()=>{sessionStorage.setItem('fe
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
-// ---------- visual ----------
+// ---------- generative VJ visual ----------
 const canvas=$('#scope'),cc=canvas.getContext('2d');let freq=null;
+const visualConfigs={
+  intensity:{label:'INTENSITY',min:.15,max:1.6,step:.01,def:.78},
+  trail:{label:'TRAIL',min:.02,max:.97,step:.01,def:.72},
+  particles:{label:'PARTICLES',min:.08,max:1,step:.01,def:.46},
+  motion:{label:'MOTION',min:.05,max:2.2,step:.01,def:.55},
+  reactivity:{label:'REACTIVITY',min:.1,max:2,step:.01,def:.92},
+  zoom:{label:'ZOOM',min:.72,max:1.65,step:.01,def:1}
+};
+const visualState={},visualVel={};for(const [k,v] of Object.entries(visualConfigs)){visualState[k]=v.def;visualVel[k]=(rand()*.012+.003)*(rand()<.5?-1:1)}
+let visualMode='karesansui',visualWalkOn=false,visualPhase=0,particles=[];
+function visualFmt(k,v){return k==='zoom'?v.toFixed(2)+'×':Math.round(v*100)+'%'}
+function buildVisualControls(){
+  const root=$('#visualControls');if(!root)return;
+  for(const [k,cfg] of Object.entries(visualConfigs)){
+    const wrap=document.createElement('div');wrap.className='visualCtl';
+    const top=document.createElement('div');top.className='visualCtlTop';
+    const lab=document.createElement('span');lab.textContent=cfg.label;
+    const val=document.createElement('strong');val.id='vv_'+k;val.textContent=visualFmt(k,visualState[k]);
+    const input=document.createElement('input');input.type='range';input.min=cfg.min;input.max=cfg.max;input.step=cfg.step;input.value=visualState[k];
+    input.id='vs_'+k;input.addEventListener('input',()=>{visualState[k]=+input.value;val.textContent=visualFmt(k,visualState[k])});
+    top.append(lab,val);wrap.append(top,input);root.appendChild(wrap);
+  }
+}
+buildVisualControls();
+document.querySelectorAll('.visualMode').forEach(btn=>btn.addEventListener('click',()=>{
+  visualMode=btn.dataset.visualMode;document.querySelectorAll('.visualMode').forEach(b=>b.classList.toggle('active',b===btn));
+  cc.fillStyle='#070707';cc.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
+}));
+$('#visualWalk')?.addEventListener('click',()=>{
+  visualWalkOn=!visualWalkOn;const b=$('#visualWalk');b.textContent='VISUAL RANDOM WALK '+(visualWalkOn?'ON':'OFF');b.classList.toggle('on',visualWalkOn);
+});
+function updateVisualWalk(dt){
+  if(!visualWalkOn)return;
+  const walkScale=.22+visualState.motion*.7;
+  for(const [k,cfg] of Object.entries(visualConfigs)){
+    visualState[k]+=visualVel[k]*dt*walkScale;
+    if(visualState[k]<=cfg.min){visualState[k]=cfg.min;visualVel[k]=Math.abs(visualVel[k])*(.75+rand()*.5)}
+    if(visualState[k]>=cfg.max){visualState[k]=cfg.max;visualVel[k]=-Math.abs(visualVel[k])*(.75+rand()*.5)}
+    if(rand()<.002)visualVel[k]*=.8+rand()*.45;
+    const s=$('#vs_'+k),v=$('#vv_'+k);if(s)s.value=visualState[k];if(v)v.textContent=visualFmt(k,visualState[k]);
+  }
+}
 function resize(){const dpr=Math.min(2,devicePixelRatio||1),r=canvas.getBoundingClientRect();canvas.width=Math.floor(r.width*dpr);canvas.height=Math.floor(r.height*dpr);cc.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
-function draw(){const w=canvas.clientWidth,h=canvas.clientHeight;cc.clearRect(0,0,w,h);cc.fillStyle='#070707';cc.fillRect(0,0,w,h);cc.strokeStyle='#1c1c1c';cc.lineWidth=1;for(let x=0;x<w;x+=48){cc.beginPath();cc.moveTo(x,0);cc.lineTo(x,h);cc.stroke()}for(let y=0;y<h;y+=36){cc.beginPath();cc.moveTo(0,y);cc.lineTo(w,y);cc.stroke()}
-  if(analyser){if(!freq||freq.length!==analyser.frequencyBinCount)freq=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(freq);cc.beginPath();for(let x=0;x<w;x++){const idx=Math.floor(Math.pow(x/w,1.55)*(freq.length-1));const a=freq[idx]/255;const y=h-10-a*(h-24);if(x===0)cc.moveTo(x,y);else cc.lineTo(x,y)}cc.strokeStyle=running?'#d9efbf':'#777';cc.lineWidth=1.25;cc.stroke();}
-  const meterValues={master:running?mixerState.master:0,sampleRhythm:rhythmOn?mixerState.sampleRhythm*rhythmState.level:0,kick:rhythmOn?mixerState.kick*rhythmState.level:0,snare:rhythmOn?mixerState.snare*rhythmState.level:0,hat:rhythmOn?mixerState.hat*rhythmState.level:0,perc:rhythmOn?mixerState.perc*rhythmState.level:0,e808mix:rhythmOn?mixerState.e808mix*rhythmState.level:0,e808kick:rhythmOn?mixerState.e808mix*mixerState.e808kick*rhythmState.level:0,e808snare:rhythmOn?mixerState.e808mix*mixerState.e808snare*rhythmState.level:0,e808hat:rhythmOn?mixerState.e808mix*mixerState.e808hat*rhythmState.level:0,e808perc:rhythmOn?mixerState.e808mix*mixerState.e808perc*rhythmState.level:0};for(const [id,v] of Object.entries(meterValues)){const el=$('#mm_'+id);if(el)el.style.width=Math.min(100,Math.max(0,v*82+(running?rand()*8:0)))+'%'}
-  requestAnimationFrame(draw)}draw();
+function bandEnergy(a,b){
+  if(!freq||!freq.length)return 0;const s=Math.floor(a*freq.length),e=Math.max(s+1,Math.floor(b*freq.length));let n=0;
+  for(let i=s;i<e;i++)n+=freq[i];return n/(e-s)/255;
+}
+function spectrumAt(n){
+  if(!freq||!freq.length)return 0;const i=Math.min(freq.length-1,Math.max(0,Math.floor(Math.pow(clamp(n,0,1),1.55)*(freq.length-1))));return freq[i]/255;
+}
+function drawKaresansui(w,h,low,mid,high,t){
+  cc.fillStyle='rgba(7,7,7,'+(0.18+(1-visualState.trail)*.58)+')';cc.fillRect(0,0,w,h);
+  const intensity=visualState.intensity*(.22+(low+mid+high)/3*visualState.reactivity);
+  cc.save();cc.translate(w/2,h/2);cc.scale(visualState.zoom,visualState.zoom);cc.translate(-w/2,-h/2);
+  const lines=10+Math.round(visualState.particles*15);
+  for(let j=0;j<lines;j++){
+    const y0=(j+1)*h/(lines+1),phase=t*(.12+.18*visualState.motion)+j*.62;
+    cc.beginPath();
+    for(let x=-20;x<=w+20;x+=5){
+      const n=clamp(x/w,0,1),spec=spectrumAt(n);
+      const wave=Math.sin(n*Math.PI*(3+j*.12)+phase)*h*.012*visualState.motion;
+      const bend=Math.sin(n*Math.PI*2+phase*.43+j)*h*.008;
+      const audio=(spec*spec)*h*.11*intensity*(.35+Math.sin(j*.71)*.22);
+      const y=y0+wave+bend-audio;
+      x===-20?cc.moveTo(x,y):cc.lineTo(x,y);
+    }
+    cc.strokeStyle='rgba(217,239,191,'+(0.07+j/lines*.18+intensity*.08)+')';cc.lineWidth=.55+(high*.9);cc.stroke();
+  }
+  const rings=2+Math.floor(low*5*visualState.reactivity);
+  const cx=w*(.36+Math.sin(t*.07)*.08),cy=h*(.54+Math.cos(t*.055)*.08);
+  for(let i=0;i<rings;i++){
+    const rr=(18+i*18+fract(t*.08+i*.17)*30)*(1+low*.8);
+    cc.beginPath();cc.ellipse(cx,cy,rr*1.8,rr*.42,0,0,Math.PI*2);
+    cc.strokeStyle='rgba(217,239,191,'+(0.05+low*.15)+')';cc.lineWidth=.7;cc.stroke();
+  }
+  cc.restore();
+}
+function drawTrail(w,h,low,mid,high,t){
+  const fade=.035+(1-visualState.trail)*.28;cc.fillStyle='rgba(7,7,7,'+fade+')';cc.fillRect(0,0,w,h);
+  cc.save();cc.translate(w/2,h/2);cc.scale(visualState.zoom,visualState.zoom);cc.translate(-w/2,-h/2);
+  const layers=3+Math.round(visualState.intensity*3);
+  for(let l=0;l<layers;l++){
+    cc.beginPath();
+    for(let x=0;x<=w;x+=3){
+      const n=x/w,s=spectrumAt(n),base=h*.52;
+      const drift=Math.sin(n*11+t*(.45+visualState.motion*.55)+l*.55)*h*.035*visualState.motion;
+      const y=base-(s*h*.58*visualState.reactivity*visualState.intensity)+drift+l*2.2;
+      x===0?cc.moveTo(x,y):cc.lineTo(x,y);
+    }
+    cc.strokeStyle='rgba(217,239,191,'+(0.08+(layers-l)/layers*.2)+')';cc.lineWidth=.7+l*.22;cc.stroke();
+  }
+  cc.restore();
+}
+function ensureParticles(w,h){
+  const target=20+Math.round(visualState.particles*220);
+  while(particles.length<target)particles.push({x:rand()*w,y:rand()*h,vx:(rand()-.5)*.4,vy:(rand()-.5)*.4,s:.4+rand()*2.1,z:rand(),life:rand()});
+  if(particles.length>target)particles.length=target;
+}
+function drawParticle(w,h,low,mid,high,t){
+  cc.fillStyle='rgba(7,7,7,'+(.045+(1-visualState.trail)*.24)+')';cc.fillRect(0,0,w,h);ensureParticles(w,h);
+  const energy=(low*.48+mid*.34+high*.18)*visualState.reactivity;
+  const cx=w/2,cy=h/2;
+  for(const p of particles){
+    const dx=p.x-cx,dy=p.y-cy,d=Math.max(20,Math.hypot(dx,dy));
+    const swirl=(.03+visualState.motion*.08)*(p.z>.5?1:-1);
+    p.vx+=(-dy/d)*swirl + (rand()-.5)*.018*visualState.motion;
+    p.vy+=(dx/d)*swirl + (rand()-.5)*.018*visualState.motion;
+    p.vx*=.992;p.vy*=.992;
+    const push=energy*visualState.intensity*(.05+p.z*.16);p.vx+=(dx/d)*push;p.vy+=(dy/d)*push;
+    p.x+=p.vx*(.7+visualState.motion);p.y+=p.vy*(.7+visualState.motion);
+    if(p.x<-10||p.x>w+10||p.y<-10||p.y>h+10){p.x=rand()*w;p.y=rand()*h;p.vx=(rand()-.5)*.25;p.vy=(rand()-.5)*.25}
+    const a=.08+energy*.35+p.z*.12,sz=p.s*(.7+high*1.8)*visualState.zoom;
+    cc.beginPath();cc.arc(p.x,p.y,sz,0,Math.PI*2);cc.fillStyle='rgba(217,239,191,'+Math.min(.72,a)+')';cc.fill();
+  }
+}
+let lastVisualTime=performance.now();
+function draw(){
+  const now=performance.now(),dt=Math.min(.05,(now-lastVisualTime)/1000||.016);lastVisualTime=now;updateVisualWalk(dt);
+  const w=canvas.clientWidth,h=canvas.clientHeight;visualPhase+=dt;
+  if(analyser){if(!freq||freq.length!==analyser.frequencyBinCount)freq=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(freq)}
+  const low=bandEnergy(0,.08),mid=bandEnergy(.08,.32),high=bandEnergy(.32,.9);
+  if(visualMode==='trail')drawTrail(w,h,low,mid,high,visualPhase);else if(visualMode==='particle')drawParticle(w,h,low,mid,high,visualPhase);else drawKaresansui(w,h,low,mid,high,visualPhase);
+  const meterValues={master:running?mixerState.master:0,sampleRhythm:rhythmOn?mixerState.sampleRhythm*rhythmState.level:0,kick:rhythmOn?mixerState.kick*rhythmState.level:0,snare:rhythmOn?mixerState.snare*rhythmState.level:0,hat:rhythmOn?mixerState.hat*rhythmState.level:0,perc:rhythmOn?mixerState.perc*rhythmState.level:0,e808mix:rhythmOn?mixerState.e808mix*rhythmState.level:0,e808kick:rhythmOn?mixerState.e808mix*mixerState.e808kick*rhythmState.level:0,e808snare:rhythmOn?mixerState.e808mix*mixerState.e808snare*rhythmState.level:0,e808hat:rhythmOn?mixerState.e808mix*mixerState.e808hat*rhythmState.level:0,e808perc:rhythmOn?mixerState.e808mix*mixerState.e808perc*rhythmState.level:0};
+  for(const [id,v] of Object.entries(meterValues)){const el=$('#mm_'+id);if(el)el.style.width=Math.min(100,Math.max(0,v*82+(running?rand()*8:0)))+'%'}
+  requestAnimationFrame(draw)
+}draw();
 window.addEventListener('error',e=>{$('#status').textContent='ERROR — '+e.message;$('#liveDot').style.background='var(--danger)'});
