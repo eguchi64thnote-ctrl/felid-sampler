@@ -40,7 +40,13 @@ const installDismissed=sessionStorage.getItem('felidInstallHintDismissed')==='1'
 if(isiPhoneLike&&!standalone&&!installDismissed){const h=$('#iosInstallHint');if(h)h.style.display='block'}
 $('#closeInstallHint')?.addEventListener('click',()=>{sessionStorage.setItem('felidInstallHintDismissed','1');$('#iosInstallHint').style.display='none'});
 
-if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',async()=>{try{const reg=await navigator.serviceWorker.register('./sw.js');reg.update().catch(()=>{})}catch(e){console.warn('service worker',e)}});
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    const k='felid-sw-reloaded-v2';
+    if(sessionStorage.getItem(k)!=='1'){sessionStorage.setItem(k,'1');location.reload()}
+  });
+  window.addEventListener('load',async()=>{try{const reg=await navigator.serviceWorker.register('./sw.js');reg.update().catch(()=>{})}catch(e){console.warn('service worker',e)}});
+}
 
 // ---------- visual ----------
 const canvas=$('#scope'),cc=canvas.getContext('2d');let freq=null;
