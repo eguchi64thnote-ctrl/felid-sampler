@@ -65,7 +65,12 @@ const mixerConfigs={
   e808kick:{label:'808 KICK',min:0,max:1.6,step:.01,def:1.2,unit:'%',rmin:.85,rmax:1.45},
   e808snare:{label:'808 SNARE',min:0,max:1.4,step:.01,def:.68,unit:'%',rmin:.35,rmax:1.0},
   e808hat:{label:'808 HAT',min:0,max:1.4,step:.01,def:.52,unit:'%',rmin:.28,rmax:.85},
-  e808perc:{label:'808 PERC',min:0,max:1.4,step:.01,def:.48,unit:'%',rmin:.25,rmax:.82}
+  e808perc:{label:'808 PERC',min:0,max:1.4,step:.01,def:.48,unit:'%',rmin:.25,rmax:.82},
+  e808bass:{label:'BASS / SUB',min:0,max:1,step:.01,def:.18,unit:'%',rmin:.05,rmax:.36},
+  bassAttack:{label:'BASS ATTACK',min:.002,max:.25,step:.002,def:.018,unit:'s',scale:'log',rmin:.004,rmax:.12},
+  bassRelease:{label:'BASS RELEASE',min:.04,max:2.2,step:.01,def:.24,unit:'s',scale:'log',rmin:.07,rmax:1.4},
+  bassTone:{label:'BASS TONE',min:0,max:1,step:.01,def:.32,unit:'%',rmin:.08,rmax:.72},
+  bassGap:{label:'GAP FILL',min:0,max:1,step:.01,def:.34,unit:'%',rmin:.1,rmax:.62}
 };
 const state={}, meta={}, rhythmState={}, mixerState={}, locked=new Set(), rhythmLocked=new Set(), mixerLocked=new Set();
 const randomRanges={}, rhythmRandomRanges={}, mixerRandomRanges={};
