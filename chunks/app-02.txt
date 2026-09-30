@@ -18,7 +18,7 @@ for(let t=1;t<=MAGIC_TITLES.length;t++){
 SAMPLE_DATA.forEach((m,i)=>{m.materialId='builtin-t'+m.track;m.groupId=ORIGINAL_GROUP;m.sourceName=m.title||MAGIC_TITLES[m.track-1];MATERIALS.get(m.materialId).sampleIndices.push(i)});
 let userMaterialCounter=0,groupCounter=0;
 
-function safeGroupName(name){return String(name||'').trim().replace(/s+/g,' ').slice(0,40)}
+function safeGroupName(name){return String(name||'').trim().replace(/\s+/g,' ').slice(0,40)}
 function uniqueGroupName(base){let name=safeGroupName(base)||'GROUP '+(groupCounter+1),n=2;const taken=()=>[...GROUPS.values()].some(g=>g.name.toLowerCase()===name.toLowerCase());const root=name;while(taken())name=root+' '+n++;return name}
 function addGroup(name){const clean=uniqueGroupName(name);const id='g-user-'+(++groupCounter);GROUPS.set(id,{id,name:clean,active:true,weight:1,builtin:false});renderGroups();return id}
 function moveMaterial(materialId,groupId){const m=MATERIALS.get(materialId);if(!m||m.builtin||!GROUPS.has(groupId))return;m.groupId=groupId;for(const i of m.sampleIndices)if(SAMPLE_DATA[i])SAMPLE_DATA[i].groupId=groupId;renderGroups()}
