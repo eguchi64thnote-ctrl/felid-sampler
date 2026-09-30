@@ -7,8 +7,7 @@ $('#presetKaresansui').onclick=()=>applyPreset('karesansui');
 $('#presetMagic').onclick=()=>applyPreset('magic');
 $('#presetDub').onclick=()=>applyPreset('dub');
 $('#presetExperimental').onclick=()=>applyPreset('experimental');
-$('#reset').onclick=()=>{morphState=null;rhythmMorphState=null;mixerMorphState=null;setContinuousRandom(false);clearAllHolds();for(const [id,c] of Object.entries(configs)){state[id]=c.def;syncControl(id,state,c)}for(const [id,c] of Object.entries(metaConfigs)){meta[id]=c.def;syncControl(id,meta,c)}for(const [id,c] of Object.entries(rhythmConfigs)){rhythmState[id]=c.def;syncRhythmControl(id)}for(const [id,c] of Object.entries(mixerConfigs)){mixerState[id]=c.def;syncMixerControl(id)}resetRandomRanges();grooveFocus='auto';divisionFocus='4';currentDivision=4;updateGrooveButtons();updateDivisionButtons();newGroove(true);updateDivisionReadout();applyGlobals()};
-window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.code==='Space'){e.preventDefault();running?stop():start()}if(e.key.toLowerCase()==='r')allRandomMorph();if(e.key.toLowerCase()==='g')newGroove(true)});
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.code==='Space'){e.preventDefault();running?stop():start()}if(e.key.toLowerCase()==='g')newGroove(true)});
 
 
 // ---------- v11 iPhone / PWA helpers ----------
@@ -41,7 +40,6 @@ function syncMobileDock(){
 $('#mobilePlay')?.addEventListener('click',async()=>{await unlockIOSAudio();$('#play').click();setTimeout(syncMobileDock,20)});
 $('#mobileWalk')?.addEventListener('click',()=>{$('#evolve').click();syncMobileDock()});
 $('#mobileRhythm')?.addEventListener('click',()=>{$('#rhythmToggle').click();syncMobileDock()});
-$('#mobileRandom')?.addEventListener('click',()=>{$('#random').click()});
 for(const id of ['play','evolve','continuousRandom','rhythmToggle'])$('#'+id)?.addEventListener('click',()=>setTimeout(syncMobileDock,20));
 syncMobileDock();
 
