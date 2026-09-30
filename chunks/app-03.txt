@@ -1,0 +1,37 @@
+l}
+$('#addGroup').onclick=()=>{const inp=$('#newGroupName');const id=addGroup(inp.value);inp.value='';$('#uploadGroup').value=id};
+$('#newGroupName').addEventListener('keydown',e=>{if(e.key==='Enter')$('#addGroup').click()});
+$('#allGroups').onclick=()=>{for(const g of GROUPS.values())g.active=true;renderGroups()};
+$('#oneGroup').onclick=()=>{const arr=[...GROUPS.values()].filter(g=>[...MATERIALS.values()].some(m=>m.groupId===g.id&&m.enabled));if(!arr.length)return;const pick=arr[Math.floor(rand()*arr.length)];for(const g of GROUPS.values())g.active=g.id===pick.id;renderGroups()};
+renderGroups();
+
+// ---------- rhythm engine ----------
+let rhythmOn=false,grooveFocus='auto',divisionFocus='4',currentDivision=4,rhythmNextStep=0,rhythmStep=0,rhythmBar=0,rhythmPattern=null,rhythmBreakBar=false;
+let groovePrimary='house',grooveSecondary='jazz',grooveBlendAmount=0;
+const rhythmRoleState={kick:{sample:-1},snare:{sample:-1},hat:{sample:-1},perc:{sample:-1}};
+const rhythmCandidateCache=new Map();
+const GROOVES={
+  house:{kick:[1,.02,.08,.02,.96,.02,.08,.02,.98,.02,.1,.02,.96,.02,.08,.03],snare:[0,.01,.03,.04,.72,.02,.04,.03,0,.02,.04,.05,.78,.02,.05,.03],hat:[.06,.12,.86,.18,.08,.14,.9,.2,.08,.14,.88,.2,.08,.14,.92,.22],perc:[.04,.08,.11,.18,.04,.12,.08,.22,.04,.08,.15,.2,.05,.12,.08,.24]},
+  techno:{kick:[1,.05,.12,.04,.98,.05,.14,.05,.99,.05,.16,.05,.98,.05,.15,.06],snare:[.02,.03,.06,.08,.58,.05,.08,.1,.03,.05,.08,.12,.63,.06,.1,.12],hat:[.22,.42,.82,.5,.26,.46,.88,.54,.28,.5,.9,.58,.3,.52,.92,.62],perc:[.14,.22,.28,.35,.12,.26,.3,.4,.15,.23,.32,.44,.18,.28,.35,.46]},
+  rnb:{kick:[.96,.05,.16,.48,.12,.08,.34,.6,.1,.18,.58,.12,.18,.06,.4,.26],snare:[.03,.03,.08,.12,.9,.04,.08,.16,.04,.04,.1,.18,.92,.05,.1,.2],hat:[.42,.32,.55,.38,.46,.35,.62,.4,.48,.36,.68,.42,.5,.38,.72,.48],perc:[.08,.14,.24,.28,.1,.22,.16,.34,.08,.18,.28,.32,.12,.2,.22,.38]},
+  hiphop:{kick:[.98,.04,.08,.18,.08,.1,.62,.1,.18,.1,.58,.16,.12,.08,.34,.22],snare:[.02,.02,.05,.08,.96,.03,.07,.1,.02,.03,.07,.12,.97,.04,.09,.16],hat:[.32,.2,.48,.22,.36,.22,.54,.25,.4,.24,.58,.28,.42,.28,.62,.34],perc:[.05,.08,.18,.14,.04,.12,.2,.24,.06,.1,.16,.28,.05,.12,.22,.3]},
+  jazz:{kick:[.35,.04,.12,.08,.24,.08,.16,.1,.32,.06,.14,.08,.24,.08,.18,.12],snare:[.08,.12,.18,.28,.12,.16,.22,.34,.08,.12,.24,.38,.12,.18,.26,.4],hat:[.72,.12,.62,.48,.76,.14,.66,.52,.74,.14,.68,.5,.78,.16,.7,.56],perc:[.16,.26,.14,.34,.18,.28,.16,.38,.2,.3,.18,.4,.2,.32,.2,.44]},
+  reggae:{kick:[.14,.02,.05,.03,.08,.02,.05,.03,.92,.02,.06,.03,.12,.02,.06,.04],snare:[.03,.02,.04,.03,.08,.02,.05,.03,.88,.03,.06,.04,.1,.03,.07,.05],hat:[.08,.1,.78,.12,.08,.1,.82,.12,.08,.1,.84,.14,.08,.12,.86,.16],perc:[.08,.16,.5,.18,.1,.18,.58,.2,.1,.18,.62,.22,.12,.2,.66,.24]}
+};
+const GROOVE_KEYS=Object.keys(GROOVES);const GROOVE_LABELS={house:'HOUSE',techno:'TECHNO',rnb:'R&B',hiphop:'HIP-HOP',jazz:'JAZZ',reggae:'REGGAE'};
+function updateGrooveButtons(){document.querySelectorAll('#grooveGrid button').forEach(b=>b.classList.toggle('active',b.dataset.groove===grooveFocus))}
+function setGrooveFocus(g){if(g!=='auto'&&!GROOVES[g])return;grooveFocus=g;updateGrooveButtons();newGroove(true)}
+document.querySelectorAll('#grooveGrid button').forEach(b=>b.onclick=()=>setGrooveFocus(b.dataset.groove));
+const DIVISION_OPTIONS=[4,3,5,7,9,11];
+function divisionLabel(n){return n===4?'STRAIGHT / 4 per beat':n+'-LET / '+n+' per beat'}
+function updateDivisionButtons(){document.querySelectorAll('#divisionGrid button').forEach(b=>b.classList.toggle('active',b.dataset.division===divisionFocus))}
+function updateDivisionReadout(){const el=$('#divisionReadout');if(el)el.textContent=(divisionFocus==='auto'?'AUTO → ':'')+divisionLabel(currentDivision)+' / '+(currentDivision*4)+' steps per bar'}
+function setDivisionFocus(v){if(v!=='auto'&&!DIVISION_OPTIONS.includes(Number(v)))return;divisionFocus=v;currentDivision=v==='auto'?DIVISION_OPTIONS[Math.floor(rand()*DIVISION_OPTIONS.length)]:Number(v);rhythmStep=0;if(ctx)rhythmNextStep=ctx.currentTime+.04;updateDivisionButtons();newGroove(true);updateDivisionReadout()}
+document.querySelectorAll('#divisionGrid button').forEach(b=>b.onclick=()=>setDivisionFocus(b.dataset.division));
+updateDivisionButtons();updateDivisionReadout();
+function rhythmPlayableIndices(){const m=[];const mg=GROUPS.get(ORIGINAL_GROUP);if(!mg||!mg.active)return m;for(const mat of MATERIALS.values())if(mat.groupId===ORIGINAL_GROUP&&mat.enabled){for(const i of mat.sampleIndices)if(buffers[i]&&!SAMPLE_DATA[i]?.disabled)m.push(i)}return m}
+function freshMagicSample(role){const arr=rhythmPlayableIndices();if(!arr.length)return -1;const rs=rhythmRoleState[role];if(rs.sample>=0&&arr.includes(rs.sample)&&rand()>.18+.55*rhythmState.mutation)return rs.sample;let i=arr[Math.floor(rand()*arr.length)];for(let n=0;n<6&&i===rs.sample;n++)i=arr[Math.floor(rand()*arr.length)];rs.sample=i;return i}
+function analyseRhythmCandidates(i){if(rhythmCandidateCache.has(i))return rhythmCandidateCache.get(i);const b=buffers[i];if(!b)return[];const d=b.getChannelData(0),hop=Math.max(64,Math.floor(b.sampleRate*.012)),win=Math.max(hop,Math.floor(b.sampleRate*.024));let prev=0;const raw=[];for(let p=0;p+win<d.length;p+=hop){let sum=0,z=0,last=d[p];for(let k=p;k<p+win;k+=4){const x=d[k];sum+=x*x;if((x>=0)!=(last>=0))z++;last=x}const rms=Math.sqrt(sum/Math.max(1,win/4)),onset=Math.max(0,rms-prev*.82),zcr=clamp(z/Math.max(1,win/4),0,1);if(rms>.006)raw.push({t:p/b.sampleRate,rms,onset,zcr});prev=rms}raw.sort((a,b)=>(b.onset+b.rms*.18)-(a.onset+a.rms*.18));const picked=[];for(const c of raw){if(picked.every(x=>Math.abs(x.t-c.t)>.045)){picked.push(c);if(picked.length>=28)break}}if(!picked.length){for(let t=.1;t<b.duration-.2;t+=Math.max(.5,b.duration/12))picked.push({t,rms:.03,onset:.01,zcr:.1})}rhythmCandidateCache.set(i,picked);return picked}
+function chooseRhythmOffset(i,role,dur){const b=buffers[i],c=analyseRhythmCandidates(i);if(!b||!c.length)return rand()*Math.max(.001,(b?.duration||1)-dur);let ranked=c.map(x=>{let roleScore=1;if(role==='kick')roleScore=(1-clamp(x.zcr*5,0,1))*.8+.2;if(role==='hat')roleScore=clamp(x.zcr*6+.08,0,1);if(role==='snare')roleScore=.35+clamp(x.zcr*4,0,.65);return {x,s:(x.onset*2+x.rms*.4+.001)*roleScore}}).sort((a,b)=>b.s-a.s);const pool=ranked.slice(0,Math.min(10,ranked.length));const pick=pool[Math.floor(Math.pow(rand(),1.6)*pool.length)].x;return clamp(pick.t+(rand()-.5)*.015,0,Math.max(0,b.duration-dur-.005))}
+function sampleGrooveAt(role,step,totalSteps){const phase=(step/Math.max(1,totalSteps))*16,i0=Math.floor(phase)%16,frac=phase-Math.floor(phase),i1=(i0+1)%16;const a0=GROOVES[groovePrimary][role][i0]||0,a1=GROOVES[groovePrimary][role][i1]||0,b0=GROOVES[grooveSecondary][role][i0]||0,b1=GROOVES[grooveSecondary][role][i1]||0;const a=a0+(a1-a0)*frac,b=b0+(b1-b0)*frac;return a*(1-grooveBlendAmount)+b*grooveBlendAmount}
+function grooveProbability(role,step,totalSteps){let p=sampleGrooveAt(role,step,totalSteps);const comp=rhythmState.complexity,dens=rhythmState.density;if(role==='
