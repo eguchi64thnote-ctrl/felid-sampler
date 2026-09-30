@@ -68,44 +68,22 @@ window.addEventListener('orientationchange',()=>setTimeout(balanceIPhoneColumns,
 
 
 // ---------- parameter memory snapshots ----------
-const SNAPSHOT_STORAGE_KEY='felid-generator-memory-v3';
-const V2_SNAPSHOT_STORAGE_KEY='felid-generator-memory-v2';
-const LEGACY_SNAPSHOT_STORAGE_KEY='felid-generator-memory-v1';
+const SNAPSHOT_STORAGE_KEY='felid-generator-memory-v4';
+const BUILTIN_DEFAULT2={"version":1,"savedAt":1790772481097,"state":{"tempo":72.71280331791462,"density":0.09541678137762642,"grain":0.7487853751882342,"voices":2.369962013337782,"ma":0.24737446794128043,"rest":3.0596671323126556,"fade":1.8593326242872468,"continuity":0.9008585722765489,"drift":0.2169557362788644,"pitch":10.035580603282044,"swing":0.2500718786831902,"cutoff":9699.567777189362,"resonance":3.4133355174620243,"delay":0.06030779356787063,"feedback":0.4441587078420912,"reverb":0.5796677708633913,"stereo":0.472054095395277,"level":0.8031522840296256},"meta":{"morph":5,"depth":0.82,"walkSpeed":1.95},"rhythmState":{"level":0.7247715473713596,"density":0.5485599667961889,"complexity":0.5051771854489712,"mutation":0.5977143078050671,"grooveDrift":0.20741367780751566,"grooveMix":0.7647857179611673,"swing":0.46786066205399424,"humanize":0.05761881105136243,"slice":0.7304843700208217,"pitch":8.696508169658676,"space":0.4924248644332554,"breaks":0.19305570170710562,"evolveBars":4.145214834639097},"mixerState":{"master":2.17272174084788,"sampleRhythm":1.2075718276514318,"kick":1.188748532706894,"snare":1.313151597204019,"hat":1.395693282844925,"perc":1.1109523932167409,"e808mix":0.86,"e808kick":0,"e808snare":0,"e808hat":0,"e808perc":0,"e808bass":0.3316077150692318,"bassAttack":0.005,"bassRelease":2.2,"bassTone":0.4885546029430165,"bassGap":0.5931124565538047},"randomRanges":{"tempo":{"min":31.484,"max":86.96000000000001},"density":{"min":0.07,"max":1.45},"grain":{"min":0.25,"max":10.5},"voices":{"min":1,"max":4},"ma":{"min":0.08,"max":0.9},"rest":{"min":1.2,"max":17},"fade":{"min":0.08,"max":2.6},"continuity":{"min":0.32,"max":0.97},"drift":{"min":0.04,"max":0.82},"pitch":{"min":0,"max":12},"swing":{"min":0,"max":0.4},"cutoff":{"min":500,"max":18000},"resonance":{"min":0.1,"max":5},"delay":{"min":0,"max":0.11120000000000002},"feedback":{"min":0.05,"max":0.68},"reverb":{"min":0.0063,"max":0.8613},"stereo":{"min":0.18,"max":1},"level":{"min":0.6492,"max":0.9995999999999999}},"rhythmRandomRanges":{"level":{"min":0.72,"max":1.12},"density":{"min":0.38,"max":1.08},"complexity":{"min":0.12,"max":0.92},"mutation":{"min":0.08,"max":0.82},"grooveDrift":{"min":0.04,"max":0.95},"grooveMix":{"min":0,"max":1},"swing":{"min":0,"max":0.58},"humanize":{"min":0.01,"max":0.34},"slice":{"min":0.6554595699913217,"max":1.6102768610959257},"pitch":{"min":0.5,"max":13},"space":{"min":0.03,"max":0.62},"breaks":{"min":0,"max":0.68},"evolveBars":{"min":1,"max":8}},"mixerRandomRanges":{"master":{"min":2.17,"max":2.37},"sampleRhythm":{"min":1,"max":1.58},"kick":{"min":1.05,"max":1.6},"snare":{"min":0.95,"max":1.5},"hat":{"min":0.82,"max":1.42},"perc":{"min":0.85,"max":1.44},"e808mix":{"min":0.59,"max":0.85},"e808kick":{"min":0.05,"max":0.44},"e808snare":{"min":0.35,"max":0.82},"e808hat":{"min":0.28,"max":0.85},"e808perc":{"min":0,"max":0.43},"e808bass":{"min":0.199,"max":0.9},"bassAttack":{"min":0.004,"max":0.12},"bassRelease":{"min":0.07,"max":2.2},"bassTone":{"min":0.31,"max":0.51},"bassGap":{"min":0.1,"max":0.62}},"holds":{"ambient":[],"rhythm":[],"mixer":["bassAttack","bassRelease","e808mix","e808snare","e808kick","e808hat","e808perc"]},"randomWalk":true,"rhythm":{"on":true,"grooveFocus":"auto","groovePrimary":"rnb","grooveSecondary":"jazz","grooveBlendAmount":0.7647857179611673,"divisionFocus":"auto","currentDivision":5},"groups":[{"id":"g-magic-hour","active":true,"weight":1},{"id":"g-in","active":true,"weight":1}],"materials":[{"id":"builtin-mh-1","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-2","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-3","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-4","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-5","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-6","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-7","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-8","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-9","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-in-1","enabled":true,"groupId":"g-in"},{"id":"builtin-in-2","enabled":true,"groupId":"g-in"},{"id":"builtin-in-3","enabled":true,"groupId":"g-in"},{"id":"builtin-in-4","enabled":true,"groupId":"g-in"},{"id":"builtin-in-5","enabled":true,"groupId":"g-in"},{"id":"builtin-in-6","enabled":true,"groupId":"g-in"},{"id":"builtin-in-7","enabled":true,"groupId":"g-in"},{"id":"builtin-in-8","enabled":true,"groupId":"g-in"},{"id":"builtin-in-9","enabled":true,"groupId":"g-in"},{"id":"builtin-in-10","enabled":true,"groupId":"g-in"}]};
+const BUILTIN_DEFAULT3={"version":1,"savedAt":1790774108308,"state":{"tempo":75.57278825946993,"density":0.3286210676257544,"grain":10.399625050990188,"voices":3.978517563105706,"ma":0.6715552209445124,"rest":1.813865194806336,"fade":0.3565578916981571,"continuity":0.7031056347943635,"drift":0.23964820124714825,"pitch":4.547569991429491,"swing":0.19702358842551734,"cutoff":7649.619974244513,"resonance":3.135093810628183,"delay":0.0977355537775755,"feedback":0.08306216600058983,"reverb":0.02118445858199346,"stereo":0.7607291813034748,"level":0.8001500764390069},"meta":{"morph":5,"depth":0.82,"walkSpeed":1.95},"rhythmState":{"level":1.0796160503469785,"density":0.607668028695526,"complexity":0.16045587474801973,"mutation":0.6951182138215517,"grooveDrift":0.7464432569327675,"grooveMix":0.7942735437912785,"swing":0.23150784106810374,"humanize":0.2960098592899108,"slice":0.9236074618365523,"pitch":4.553084035565298,"space":0.14164253179892508,"breaks":0.5530620267359471,"evolveBars":7.132870046566778},"mixerState":{"master":2.2977267257009633,"sampleRhythm":1.5348606640506337,"kick":1.4684994416281858,"snare":1.1951956201903216,"hat":0.9738834571263957,"perc":0.8695882429251564,"e808mix":0.86,"e808kick":0.53,"e808snare":0,"e808hat":0.78,"e808perc":0,"e808bass":0.8839115158090101,"bassAttack":0.005,"bassRelease":2.2,"bassTone":0.3515447960499838,"bassGap":0.13742449864938835},"randomRanges":{"tempo":{"min":31.484,"max":86.96000000000001},"density":{"min":0.07,"max":1.45},"grain":{"min":0.25,"max":10.5},"voices":{"min":1,"max":4},"ma":{"min":0.08,"max":0.9},"rest":{"min":1.2,"max":17},"fade":{"min":0.08,"max":2.6},"continuity":{"min":0.32,"max":0.97},"drift":{"min":0.04,"max":0.82},"pitch":{"min":0,"max":12},"swing":{"min":0,"max":0.4},"cutoff":{"min":500,"max":18000},"resonance":{"min":0.1,"max":5},"delay":{"min":0,"max":0.11120000000000002},"feedback":{"min":0.05,"max":0.68},"reverb":{"min":0.0063,"max":0.8613},"stereo":{"min":0.18,"max":1},"level":{"min":0.6492,"max":0.9995999999999999}},"rhythmRandomRanges":{"level":{"min":0.72,"max":1.12},"density":{"min":0.38,"max":1.08},"complexity":{"min":0.12,"max":0.92},"mutation":{"min":0.08,"max":0.82},"grooveDrift":{"min":0.04,"max":0.95},"grooveMix":{"min":0,"max":1},"swing":{"min":0,"max":0.58},"humanize":{"min":0.01,"max":0.34},"slice":{"min":0.6554595699913217,"max":1.6102768610959257},"pitch":{"min":0.5,"max":13},"space":{"min":0.03,"max":0.62},"breaks":{"min":0,"max":0.68},"evolveBars":{"min":1,"max":8}},"mixerRandomRanges":{"master":{"min":2.17,"max":2.37},"sampleRhythm":{"min":1,"max":1.58},"kick":{"min":1.05,"max":1.6},"snare":{"min":0.95,"max":1.5},"hat":{"min":0.82,"max":1.42},"perc":{"min":0.85,"max":1.44},"e808mix":{"min":0.59,"max":0.85},"e808kick":{"min":0.05,"max":0.44},"e808snare":{"min":0.35,"max":0.82},"e808hat":{"min":0.28,"max":0.85},"e808perc":{"min":0,"max":0.43},"e808bass":{"min":0.199,"max":0.9},"bassAttack":{"min":0.004,"max":0.12},"bassRelease":{"min":0.07,"max":2.2},"bassTone":{"min":0.31,"max":0.51},"bassGap":{"min":0.1,"max":0.62}},"holds":{"ambient":[],"rhythm":[],"mixer":["bassAttack","bassRelease","e808mix","e808snare","e808kick","e808hat","e808perc"]},"randomWalk":true,"rhythm":{"on":true,"grooveFocus":"auto","groovePrimary":"rnb","grooveSecondary":"techno","grooveBlendAmount":0.7942735437912785,"divisionFocus":"auto","currentDivision":4},"groups":[{"id":"g-magic-hour","active":true,"weight":1},{"id":"g-in","active":true,"weight":1}],"materials":[{"id":"builtin-mh-1","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-2","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-3","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-4","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-5","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-6","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-7","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-8","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-mh-9","enabled":true,"groupId":"g-magic-hour"},{"id":"builtin-in-1","enabled":true,"groupId":"g-in"},{"id":"builtin-in-2","enabled":true,"groupId":"g-in"},{"id":"builtin-in-3","enabled":true,"groupId":"g-in"},{"id":"builtin-in-4","enabled":true,"groupId":"g-in"},{"id":"builtin-in-5","enabled":true,"groupId":"g-in"},{"id":"builtin-in-6","enabled":true,"groupId":"g-in"},{"id":"builtin-in-7","enabled":true,"groupId":"g-in"},{"id":"builtin-in-8","enabled":true,"groupId":"g-in"},{"id":"builtin-in-9","enabled":true,"groupId":"g-in"},{"id":"builtin-in-10","enabled":true,"groupId":"g-in"}]};
 function clonePlain(v){return JSON.parse(JSON.stringify(v))}
 function safeParseJSON(raw){try{return raw?JSON.parse(raw):null}catch(e){return null}}
 function loadMemoryState(){
   const current=safeParseJSON(localStorage.getItem(SNAPSHOT_STORAGE_KEY));
-  const v2=safeParseJSON(localStorage.getItem(V2_SNAPSHOT_STORAGE_KEY));
-  const legacy=safeParseJSON(localStorage.getItem(LEGACY_SNAPSHOT_STORAGE_KEY))||{};
-
-  const repaired={
-    version:3,
-    default2:
-      current?.default2 ||
-      v2?.default2 ||
-      legacy['1'] ||
-      null,
-    default3:
-      current?.default3 ||
-      v2?.slots?.['1'] ||
-      legacy['2'] ||
-      null,
-    slots:{
-      '1':
-        current?.slots?.['1'] ||
-        v2?.slots?.['2'] ||
-        legacy['3'] ||
-        null
-    }
+  return {
+    version:4,
+    slots:{'1':current?.slots?.['1']||null}
   };
-
-  try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(repaired))}catch(e){}
-  return repaired;
 }
 let memoryState=loadMemoryState();
 let snapshotSlots=memoryState.slots||{};
-let default2Snapshot=memoryState.default2||null;
-let default3Snapshot=memoryState.default3||null;
+const default2Snapshot=clonePlain(BUILTIN_DEFAULT2);
+const default3Snapshot=clonePlain(BUILTIN_DEFAULT3);
 
 function captureSnapshot(){
   return {
@@ -118,256 +96,82 @@ function captureSnapshot(){
     randomRanges:clonePlain(randomRanges),
     rhythmRandomRanges:clonePlain(rhythmRandomRanges),
     mixerRandomRanges:clonePlain(mixerRandomRanges),
-    holds:{
-      ambient:[...locked],
-      rhythm:[...rhythmLocked],
-      mixer:[...mixerLocked]
-    },
+    holds:{ambient:[...locked],rhythm:[...rhythmLocked],mixer:[...mixerLocked]},
     randomWalk:!!evolving,
-    rhythm:{
-      on:!!rhythmOn,
-      grooveFocus,
-      groovePrimary,
-      grooveSecondary,
-      grooveBlendAmount,
-      divisionFocus,
-      currentDivision
-    },
+    rhythm:{on:!!rhythmOn,grooveFocus,groovePrimary,grooveSecondary,grooveBlendAmount,divisionFocus,currentDivision},
     groups:[...GROUPS.values()].map(g=>({id:g.id,active:!!g.active,weight:Number(g.weight)||1})),
     materials:[...MATERIALS.values()].map(m=>({id:m.id,enabled:!!m.enabled,groupId:m.groupId}))
   };
 }
 function persistMemoryState(){
-  memoryState={version:3,default2:default2Snapshot,default3:default3Snapshot,slots:snapshotSlots};
+  memoryState={version:4,slots:snapshotSlots};
   try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(memoryState))}catch(e){}
 }
-function recoverDefaultSnapshots(){
-  const repaired=loadMemoryState();
-  if(!default2Snapshot&&repaired.default2)default2Snapshot=repaired.default2;
-  if(!default3Snapshot&&repaired.default3)default3Snapshot=repaired.default3;
-  if(!snapshotSlots['1']&&repaired.slots?.['1'])snapshotSlots['1']=repaired.slots['1'];
-  persistMemoryState();
-}
 function updateSnapshotButtons(){
-  recoverDefaultSnapshots();
   document.querySelectorAll('.snapshotSlot').forEach(b=>{
     const slot=b.dataset.slot,s=snapshotSlots[slot];
     b.textContent=s?'RECALL '+slot:'SAVE '+slot;
     b.classList.toggle('saved',!!s);
-    b.title=s
-      ?'Tap to recall SAVE '+slot+'. Hold to overwrite it with the current state.'
-      :'Tap to save the current state to SAVE '+slot+'.';
+    b.title=s?'Tap to recall SAVE '+slot+'. Hold to overwrite it with the current state.':'Tap to save the current state to SAVE '+slot+'.';
   });
-  const defs=[
-    ['#default2Snapshot',default2Snapshot,'DEFAULT 2'],
-    ['#default3Snapshot',default3Snapshot,'DEFAULT 3']
-  ];
-  for(const [sel,data,label] of defs){
-    const b=$(sel);if(!b)continue;
-    b.disabled=false;
-    b.classList.toggle('missingSnapshot',!data);
-    b.title=data?('Recall '+label+'.'):('Tap to retry recovery for '+label+'.');
+  for(const sel of ['#default2Snapshot','#default3Snapshot']){
+    const b=$(sel);if(!b)continue;b.disabled=false;b.classList.remove('missingSnapshot');
   }
 }
 function flashSnapshotStatus(text){
   const s=$('#status');if(!s)return;
   s.textContent=text;
   clearTimeout(flashSnapshotStatus._t);
-  flashSnapshotStatus._t=setTimeout(()=>{
-    s.textContent=running?(evolving?'GENERATING / RANDOM WALK':'GENERATING'):(evolving?'RANDOM WALK / press PLAY':(ctx?'STOPPED':'READY — press PLAY'));
-  },1100);
+  flashSnapshotStatus._t=setTimeout(()=>{s.textContent=running?(evolving?'GENERATING / RANDOM WALK':'GENERATING'):(evolving?'RANDOM WALK / press PLAY':(ctx?'STOPPED':'READY — press PLAY'))},1100);
 }
-function saveSnapshot(slot){
-  snapshotSlots[String(slot)]=captureSnapshot();
-  persistMemoryState();
-  updateSnapshotButtons();
-  flashSnapshotStatus('SAVE '+slot+' STORED');
-}
-function restoreObject(target,source,configsMap){
-  if(!source)return;
-  for(const [id,c] of Object.entries(configsMap)){
-    const v=Number(source[id]);
-    if(Number.isFinite(v))target[id]=clamp(v,c.min,c.max);
-  }
-}
-function restoreRanges(target,source,configsMap){
-  if(!source)return;
-  for(const [id,c] of Object.entries(configsMap)){
-    const r=source[id];if(!r)continue;
-    let lo=Number(r.min),hi=Number(r.max);
-    if(!Number.isFinite(lo)||!Number.isFinite(hi))continue;
-    lo=clamp(lo,c.min,c.max);hi=clamp(hi,c.min,c.max);
-    if(hi<lo)[lo,hi]=[hi,lo];
-    target[id]={min:lo,max:hi};
-  }
-}
-function restoreHoldSet(set,values,valid){
-  set.clear();
-  for(const id of (values||[]))if(valid[id])set.add(id);
-}
+function saveSnapshot(slot){snapshotSlots[String(slot)]=captureSnapshot();persistMemoryState();updateSnapshotButtons();flashSnapshotStatus('SAVE '+slot+' STORED')}
+function restoreObject(target,source,configsMap){if(!source)return;for(const [id,c] of Object.entries(configsMap)){const v=Number(source[id]);if(Number.isFinite(v))target[id]=clamp(v,c.min,c.max)}}
+function restoreRanges(target,source,configsMap){if(!source)return;for(const [id,c] of Object.entries(configsMap)){const r=source[id];if(!r)continue;let lo=Number(r.min),hi=Number(r.max);if(!Number.isFinite(lo)||!Number.isFinite(hi))continue;lo=clamp(lo,c.min,c.max);hi=clamp(hi,c.min,c.max);if(hi<lo)[lo,hi]=[hi,lo];target[id]={min:lo,max:hi}}}
+function restoreHoldSet(set,values,valid){set.clear();for(const id of (values||[]))if(valid[id])set.add(id)}
 function restoreSnapshotData(s,label){
   if(!s)return;
   morphState=null;rhythmMorphState=null;mixerMorphState=null;
-
-  restoreObject(state,s.state,configs);
-  restoreObject(meta,s.meta,metaConfigs);
-  restoreObject(rhythmState,s.rhythmState,rhythmConfigs);
-  restoreObject(mixerState,s.mixerState,mixerConfigs);
-  restoreRanges(randomRanges,s.randomRanges,configs);
-  restoreRanges(rhythmRandomRanges,s.rhythmRandomRanges,rhythmConfigs);
-  restoreRanges(mixerRandomRanges,s.mixerRandomRanges,mixerConfigs);
-
-  restoreHoldSet(locked,s.holds?.ambient,configs);
-  restoreHoldSet(rhythmLocked,s.holds?.rhythm,rhythmConfigs);
-  restoreHoldSet(mixerLocked,s.holds?.mixer,mixerConfigs);
-
-  for(const gState of (s.groups||[])){
-    const g=GROUPS.get(gState.id);if(!g)continue;
-    g.active=!!gState.active;
-    if(Number.isFinite(Number(gState.weight)))g.weight=clamp(Number(gState.weight),.05,2);
-  }
-  for(const mState of (s.materials||[])){
-    const m=MATERIALS.get(mState.id);if(!m)continue;
-    m.enabled=!!mState.enabled;
-    if(!m.builtin&&mState.groupId&&GROUPS.has(mState.groupId))m.groupId=mState.groupId;
-  }
-
+  restoreObject(state,s.state,configs);restoreObject(meta,s.meta,metaConfigs);restoreObject(rhythmState,s.rhythmState,rhythmConfigs);restoreObject(mixerState,s.mixerState,mixerConfigs);
+  restoreRanges(randomRanges,s.randomRanges,configs);restoreRanges(rhythmRandomRanges,s.rhythmRandomRanges,rhythmConfigs);restoreRanges(mixerRandomRanges,s.mixerRandomRanges,mixerConfigs);
+  restoreHoldSet(locked,s.holds?.ambient,configs);restoreHoldSet(rhythmLocked,s.holds?.rhythm,rhythmConfigs);restoreHoldSet(mixerLocked,s.holds?.mixer,mixerConfigs);
+  for(const gState of (s.groups||[])){const g=GROUPS.get(gState.id);if(!g)continue;g.active=!!gState.active;if(Number.isFinite(Number(gState.weight)))g.weight=clamp(Number(gState.weight),.05,2)}
+  for(const mState of (s.materials||[])){const m=MATERIALS.get(mState.id);if(!m)continue;m.enabled=!!mState.enabled;if(!m.builtin&&mState.groupId&&GROUPS.has(mState.groupId))m.groupId=mState.groupId}
   const rs=s.rhythm||{};
   if(rs.grooveFocus==='auto'||GROOVES[rs.grooveFocus])grooveFocus=rs.grooveFocus;
-  if(GROOVES[rs.groovePrimary])groovePrimary=rs.groovePrimary;
-  if(GROOVES[rs.grooveSecondary])grooveSecondary=rs.grooveSecondary;
+  if(GROOVES[rs.groovePrimary])groovePrimary=rs.groovePrimary;if(GROOVES[rs.grooveSecondary])grooveSecondary=rs.grooveSecondary;
   if(Number.isFinite(Number(rs.grooveBlendAmount)))grooveBlendAmount=clamp(Number(rs.grooveBlendAmount),0,1);
   if(rs.divisionFocus==='auto'||DIVISION_OPTIONS.includes(Number(rs.divisionFocus)))divisionFocus=rs.divisionFocus;
   if(DIVISION_OPTIONS.includes(Number(rs.currentDivision)))currentDivision=Number(rs.currentDivision);
-  rhythmOn=!!rs.on;
-  rhythmStep=0;rhythmBar=0;
-  if(ctx)rhythmNextStep=ctx.currentTime+.04;
-
-  for(const id of Object.keys(configs))syncControl(id,state,configs[id]);
-  for(const id of Object.keys(metaConfigs))syncControl(id,meta,metaConfigs[id]);
-  for(const id of Object.keys(rhythmConfigs))syncRhythmControl(id);
-  for(const id of Object.keys(mixerConfigs))syncMixerControl(id);
-  syncAllRandomRangeEditors();
-  for(const id of Object.keys(configs))syncLockButton('a',id);
-  for(const id of Object.keys(rhythmConfigs))syncLockButton('r',id);
-  for(const id of Object.keys(mixerConfigs))syncLockButton('m',id);
-
-  updateGrooveButtons();
-  updateDivisionButtons();
-  rebuildCurrentRhythmPattern();
-  updateDivisionReadout();
-  updateGrooveReadout();
-  $('#rhythmToggle').textContent=rhythmOn?'RHYTHM ON':'RHYTHM OFF';
-  $('#rhythmToggle').classList.toggle('on',rhythmOn);
-  $('#rhythmPulse').classList.toggle('on',rhythmOn);
-  renderGroups();
-  resetWalkAgents();
-  setContinuousRandom(s.randomWalk!==false);
-  applyGlobals();
-  syncMobileDock();
-
+  rhythmOn=!!rs.on;rhythmStep=0;rhythmBar=0;if(ctx)rhythmNextStep=ctx.currentTime+.04;
+  for(const id of Object.keys(configs))syncControl(id,state,configs[id]);for(const id of Object.keys(metaConfigs))syncControl(id,meta,metaConfigs[id]);for(const id of Object.keys(rhythmConfigs))syncRhythmControl(id);for(const id of Object.keys(mixerConfigs))syncMixerControl(id);
+  syncAllRandomRangeEditors();for(const id of Object.keys(configs))syncLockButton('a',id);for(const id of Object.keys(rhythmConfigs))syncLockButton('r',id);for(const id of Object.keys(mixerConfigs))syncLockButton('m',id);
+  updateGrooveButtons();updateDivisionButtons();rebuildCurrentRhythmPattern();updateDivisionReadout();updateGrooveReadout();
+  $('#rhythmToggle').textContent=rhythmOn?'RHYTHM ON':'RHYTHM OFF';$('#rhythmToggle').classList.toggle('on',rhythmOn);$('#rhythmPulse').classList.toggle('on',rhythmOn);
+  renderGroups();resetWalkAgents();setContinuousRandom(s.randomWalk!==false);applyGlobals();syncMobileDock();
   document.querySelectorAll('.snapshotSlot,.snapshotDefault').forEach(b=>b.classList.remove('recalled'));
   const map={'DEFAULT 1':'#default1Snapshot','DEFAULT 2':'#default2Snapshot','DEFAULT 3':'#default3Snapshot'};
-  const active=map[label];
-  if(active){const b=$(active);if(b){b.classList.add('recalled');setTimeout(()=>b.classList.remove('recalled'),650)}}
-  else{
-    const m=String(label||'').match(/SAVE\s+(\d+)/);
-    if(m){const b=document.querySelector('.snapshotSlot[data-slot="'+m[1]+'"]');if(b){b.classList.add('recalled');setTimeout(()=>b.classList.remove('recalled'),650)}}
-  }
+  const active=map[label];if(active){const b=$(active);if(b){b.classList.add('recalled');setTimeout(()=>b.classList.remove('recalled'),650)}}else{const m=String(label||'').match(/SAVE\s+(\d+)/);if(m){const b=document.querySelector('.snapshotSlot[data-slot="'+m[1]+'"]');if(b){b.classList.add('recalled');setTimeout(()=>b.classList.remove('recalled'),650)}}}
   flashSnapshotStatus(label+' RECALLED');
 }
 function restoreSnapshot(slot){restoreSnapshotData(snapshotSlots[String(slot)],'SAVE '+slot)}
 function makeDefault1Snapshot(){
   const valuesFrom=defs=>Object.fromEntries(Object.entries(defs).map(([id,c])=>[id,c.def]));
   const rangesFrom=defs=>Object.fromEntries(Object.entries(defs).map(([id,c])=>[id,{min:c.rmin??c.min,max:c.rmax??c.max}]));
-  return {
-    version:1,
-    savedAt:0,
-    state:valuesFrom(configs),
-    meta:valuesFrom(metaConfigs),
-    rhythmState:valuesFrom(rhythmConfigs),
-    mixerState:valuesFrom(mixerConfigs),
-    randomRanges:rangesFrom(configs),
-    rhythmRandomRanges:rangesFrom(rhythmConfigs),
-    mixerRandomRanges:rangesFrom(mixerConfigs),
-    holds:{ambient:[],rhythm:[],mixer:['e808kick','bassAttack','bassRelease']},
-    randomWalk:true,
-    rhythm:{on:false,grooveFocus:'auto',groovePrimary:'house',grooveSecondary:'jazz',grooveBlendAmount:.05,divisionFocus:'auto',currentDivision:11},
-    groups:[...GROUPS.values()].map(g=>({id:g.id,active:g.builtin?true:false,weight:g.builtin?1:(Number(g.weight)||1)})),
-    materials:[...MATERIALS.values()].map(m=>({id:m.id,enabled:m.builtin?true:false,groupId:m.groupId}))
-  };
+  return {version:1,savedAt:0,state:valuesFrom(configs),meta:valuesFrom(metaConfigs),rhythmState:valuesFrom(rhythmConfigs),mixerState:valuesFrom(mixerConfigs),randomRanges:rangesFrom(configs),rhythmRandomRanges:rangesFrom(rhythmConfigs),mixerRandomRanges:rangesFrom(mixerConfigs),holds:{ambient:[],rhythm:[],mixer:['e808kick','bassAttack','bassRelease']},randomWalk:true,rhythm:{on:false,grooveFocus:'auto',groovePrimary:'house',grooveSecondary:'jazz',grooveBlendAmount:.05,divisionFocus:'auto',currentDivision:11},groups:[...GROUPS.values()].map(g=>({id:g.id,active:g.builtin?true:false,weight:g.builtin?1:(Number(g.weight)||1)})),materials:[...MATERIALS.values()].map(m=>({id:m.id,enabled:m.builtin?true:false,groupId:m.groupId}))};
 }
 function restoreDefault1(){restoreSnapshotData(makeDefault1Snapshot(),'DEFAULT 1')}
-function restoreDefault2(){
-  recoverDefaultSnapshots();
-  if(default2Snapshot)restoreSnapshotData(default2Snapshot,'DEFAULT 2');
-  else flashSnapshotStatus('DEFAULT 2 DATA NOT FOUND');
-}
-function restoreDefault3(){
-  recoverDefaultSnapshots();
-  if(default3Snapshot)restoreSnapshotData(default3Snapshot,'DEFAULT 3');
-  else flashSnapshotStatus('DEFAULT 3 DATA NOT FOUND');
-}
-$('#default1Snapshot')?.addEventListener('click',restoreDefault1);
-$('#default2Snapshot')?.addEventListener('click',restoreDefault2);
-$('#default3Snapshot')?.addEventListener('click',restoreDefault3);
+function restoreDefault2(){restoreSnapshotData(default2Snapshot,'DEFAULT 2')}
+function restoreDefault3(){restoreSnapshotData(default3Snapshot,'DEFAULT 3')}
+$('#default1Snapshot')?.addEventListener('click',restoreDefault1);$('#default2Snapshot')?.addEventListener('click',restoreDefault2);$('#default3Snapshot')?.addEventListener('click',restoreDefault3);
 
 function bindSnapshotButtons(){
   document.querySelectorAll('.snapshotSlot').forEach(b=>{
-    let timer=null,longFired=false;
-    const slot=b.dataset.slot;
-    b.addEventListener('pointerdown',()=>{
-      longFired=false;
-      if(snapshotSlots[slot])timer=setTimeout(()=>{longFired=true;saveSnapshot(slot);if(navigator.vibrate)navigator.vibrate(25)},650);
-    });
-    const finish=()=>{
-      if(timer){clearTimeout(timer);timer=null}
-      if(longFired){longFired=false;return}
-      if(snapshotSlots[slot])restoreSnapshot(slot);else saveSnapshot(slot);
-    };
-    b.addEventListener('pointerup',finish);
-    b.addEventListener('pointercancel',()=>{if(timer)clearTimeout(timer);timer=null});
-    b.addEventListener('pointerleave',()=>{if(timer)clearTimeout(timer);timer=null});
-    b.addEventListener('contextmenu',e=>e.preventDefault());
-    b.addEventListener('keydown',e=>{
-      if(e.key==='Enter'||e.key===' '){
-        e.preventDefault();
-        if(e.shiftKey)saveSnapshot(slot);
-        else if(snapshotSlots[slot])restoreSnapshot(slot);
-        else saveSnapshot(slot);
-      }
-    });
+    let timer=null,longFired=false;const slot=b.dataset.slot;
+    b.addEventListener('pointerdown',()=>{longFired=false;if(snapshotSlots[slot])timer=setTimeout(()=>{longFired=true;saveSnapshot(slot);if(navigator.vibrate)navigator.vibrate(25)},650)});
+    const finish=()=>{if(timer){clearTimeout(timer);timer=null}if(longFired){longFired=false;return}if(snapshotSlots[slot])restoreSnapshot(slot);else saveSnapshot(slot)};
+    b.addEventListener('pointerup',finish);b.addEventListener('pointercancel',()=>{if(timer)clearTimeout(timer);timer=null});b.addEventListener('pointerleave',()=>{if(timer)clearTimeout(timer);timer=null});b.addEventListener('contextmenu',e=>e.preventDefault());
+    b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();if(e.shiftKey)saveSnapshot(slot);else if(snapshotSlots[slot])restoreSnapshot(slot);else saveSnapshot(slot)}});
   });
-  persistMemoryState();
-  updateSnapshotButtons();
+  persistMemoryState();updateSnapshotButtons();
 }
 bindSnapshotButtons();
-
-// ---------- one-time preset export helper ----------
-(function(){
-  const q=new URLSearchParams(location.search);
-  if(q.get('preset-export')!=='1')return;
-  const bar=document.querySelector('.snapshotBar');
-  if(!bar)return;
-  const btn=document.createElement('button');
-  btn.id='exportDefaultsButton';
-  btn.textContent='COPY DEFAULT 2+3 DATA';
-  btn.style.minHeight='32px';
-  btn.onclick=async()=>{
-    recoverDefaultSnapshots();
-    const payload=JSON.stringify({default2:default2Snapshot,default3:default3Snapshot});
-    try{
-      await navigator.clipboard.writeText(payload);
-      flashSnapshotStatus('DEFAULT 2+3 DATA COPIED');
-    }catch(e){
-      const ta=document.createElement('textarea');
-      ta.value=payload;
-      ta.style.width='100%';
-      ta.style.minHeight='140px';
-      bar.after(ta);
-      ta.focus();ta.select();
-      flashSnapshotStatus('COPY THE DEFAULT 2+3 DATA BELOW');
-    }
-  };
-  bar.appendChild(btn);
-})();
