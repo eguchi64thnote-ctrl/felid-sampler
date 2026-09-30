@@ -61,7 +61,7 @@ const mixerConfigs={
   snare:{label:'CUT SNARE',min:0,max:1.7,step:.01,def:1.28,unit:'%',rmin:.95,rmax:1.5},
   hat:{label:'CUT HAT',min:0,max:1.6,step:.01,def:1.12,unit:'%',rmin:.82,rmax:1.42},
   perc:{label:'CUT PERC',min:0,max:1.6,step:.01,def:1.16,unit:'%',rmin:.85,rmax:1.44},
-  e808mix:{label:'808 MIX',min:0,max:1,step:.01,def:.33,unit:'%',rmin:.08,rmax:.48},
+  e808mix:{label:'808 MIX',min:0,max:1,step:.01,def:.33,unit:'%',rmin:.69,rmax:.85},
   e808kick:{label:'808 KICK',min:0,max:1.6,step:.01,def:.51,unit:'%',rmin:.14,rmax:.52},
   e808snare:{label:'808 SNARE',min:0,max:1.4,step:.01,def:.69,unit:'%',rmin:.35,rmax:.82},
   e808hat:{label:'808 HAT',min:0,max:1.4,step:.01,def:.65,unit:'%',rmin:.28,rmax:.85},
