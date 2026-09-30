@@ -409,16 +409,6 @@ button{font-size:12px}
   background:var(--accent);
   opacity:.9;
 }
-.rangeBound:after{
-  content:'';
-  position:absolute;
-  left:50%;
-  top:0;
-  width:6px;
-  height:6px;
-  transform:translateX(-50%) rotate(45deg);
-  background:var(--accent);
-}
 .rangeBoundLabels{
   position:absolute;
   left:0;right:0;
@@ -444,7 +434,6 @@ button{font-size:12px}
   .rangeBarShell .rangeCurrent::-moz-range-thumb{width:18px;height:18px}
   .rangeBound{width:30px;height:30px;top:0}
   .rangeBound:before{top:4px;height:20px}
-  .rangeBound:after{top:2px;width:7px;height:7px}
   .rangeBoundLabels{top:32px;font-size:7px}
 }
 @media(max-width:640px) and (orientation:portrait){
