@@ -90,12 +90,13 @@ button{font-size:12px}
   .grid{
     display:grid;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-    align-items:start;
+    align-items:stretch;
   }
   .panel{
     min-width:0;
     padding:12px 8px 16px;
     border-bottom:0;
+    height:100%;
   }
   .panel:first-child{
     border-right:1px solid var(--line);
