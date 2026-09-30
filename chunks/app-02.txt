@@ -13,7 +13,7 @@ GROUPS.set(ORIGINAL_GROUP,{id:ORIGINAL_GROUP,name:'FeLid Magic Hour',active:true
 const MAGIC_TITLES=["Karesansui in the air #2","Hello, World","Magic hour (disco)","Environmental Mood","Rotate Dub","Yuudachi Dub #2","Akirame Mo Kanzin","Harmonics Dub #2","Sense of Gradation"];
 for(let t=1;t<=MAGIC_TITLES.length;t++){
   const id='builtin-t'+t;
-  MATERIALS.set(id,{id,name:MAGIC_TITLES[t-1],groupId:ORIGINAL_GROUP,enabled:true,builtin:true,sampleIndices:[]});
+  MATERIALS.set(id,{id,name:MAGIC_TITLES[t-1],groupId:ORIGINAL_GROUP,enabled:(t===1||t===6),builtin:true,sampleIndices:[]});
 }
 SAMPLE_DATA.forEach((m,i)=>{m.materialId='builtin-t'+m.track;m.groupId=ORIGINAL_GROUP;m.sourceName=m.title||MAGIC_TITLES[m.track-1];MATERIALS.get(m.materialId).sampleIndices.push(i)});
 let userMaterialCounter=0,groupCounter=0;
