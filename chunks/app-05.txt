@@ -8,7 +8,7 @@ $('#rhythmToggle').onclick=toggleRhythm;$('#rhythmRandom').onclick=rhythmRandomM
 let ctx=null, master=null, compressor=null, analyser=null, dryGain=null, ambientBus=null, rhythmSampleBus=null, eightOhEightBus=null, rhythmDelaySend=null, rhythmReverbSend=null, delayNode=null, delayGain=null, feedbackGain=null, convolver=null, reverbGain=null, noiseBuffer=null;
 const rhythmRoleBuses={kick:null,snare:null,hat:null,perc:null},e808RoleBuses={kick:null,snare:null,hat:null,perc:null};
 let buffers=new Array(TOTAL).fill(null), decodedCount=0, decoding=false, running=false, scheduler=null, backgroundDecodeStarted=false;
-let eventId=0, evolving=false, lastTrack=null;
+let eventId=0, evolving=true, lastTrack=null;
 const layers=Array.from({length:4},(_,i)=>({next:0,count:0,sample:-1,anchor:rand(),factor:[1,2.1,4.6,9.4][i],dur:[.65,1.0,1.55,2.3][i]}));
 let globalRestUntil=0,nextRestCheck=0;
 const recentSigs=new Set(), sigQueue=[];
