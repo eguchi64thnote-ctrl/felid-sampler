@@ -22,6 +22,3 @@ function setContinuousRandom(on){evolving=!!on;morphState=null;rhythmMorphState=
 $('#evolve').onclick=()=>setContinuousRandom(!evolving);$('#continuousRandom').onclick=()=>setContinuousRandom(!evolving);
 $('#resetRandomRanges').onclick=resetRandomRanges;
 
-const PRESETS={
-  karesansui:{tempo:54,density:.12,grain:5.8,voices:1,ma:.82,rest:14,fade:1.45,continuity:.93,drift:.11,pitch:.7,swing:.04,cutoff:6200,resonance:.45,delay:.12,feedback:.22,reverb:.46,stereo:.72,level:.60},
-  magic:{tempo:76,density:.38,grain:3.4,voices:2,ma:.46,rest:6.5,fad
