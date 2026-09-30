@@ -35,9 +35,9 @@ const configs = {
   level:{label:'AMBIENT LEVEL',min:0,max:1.2,step:.01,def:1.0,unit:'%',rmin:.8,rmax:1.15}
 };
 const metaConfigs={
-  morph:{label:'MORPH TIME',min:1,max:60,step:1,def:14,unit:'s'},
+  morph:{label:'MORPH TIME',min:1,max:60,step:1,def:5,unit:'s'},
   depth:{label:'RANDOM DEPTH',min:.1,max:1,step:.01,def:.82,unit:'%'},
-  walkSpeed:{label:'WALK SPEED',min:.15,max:3,step:.01,def:.8,unit:'x'}
+  walkSpeed:{label:'WALK SPEED',min:.15,max:3,step:.01,def:1.95,unit:'x'}
 };
 const rhythmConfigs={
   level:{label:'RHYTHM LEVEL',min:0,max:1.2,step:.01,def:.92,unit:'%',rmin:.72,rmax:1.12},
