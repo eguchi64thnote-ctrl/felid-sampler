@@ -86,9 +86,11 @@ function makeControl(id,c,target,isMeta=false){
   right.appendChild(val);
   if(!isMeta){const lock=makeLockButton('a',id);right.append(' ',lock)}
   top.append(lab,right);
-  const input=document.createElement('input');input.type='range';input.min=c.min;input.max=c.max;input.step=c.step;input.value=target[id];input.id='p_'+id;
-  const setValue=v=>{target[id]=snapConfigValue(v,c);input.value=target[id];val.textContent=fmt(target[id],c);if(!isMeta&&morphState)delete morphState.targets[id];applyGlobals()};
-  input.oninput=()=>{let v=Number(input.value);if(!isMeta){v=clamp(v,randomRanges[id].min,randomRanges[id].max)}setValue(v)};
+  const input=document.createElement('input');input.type='range';input.id='p_'+id;
+  if(isMeta){input.min=c.min;input.max=c.max;input.step=c.step;input.value=target[id]}
+  else{input.min=0;input.max=1000;input.step=1;input.value=Math.round(toNorm(target[id],c)*1000)}
+  const setValue=v=>{target[id]=snapConfigValue(v,c);input.value=isMeta?target[id]:Math.round(toNorm(target[id],c)*1000);val.textContent=fmt(target[id],c);if(!isMeta&&morphState)delete morphState.targets[id];applyGlobals()};
+  input.oninput=()=>{let v=isMeta?Number(input.value):fromNorm(Number(input.value)/1000,c);if(!isMeta)v=clamp(v,randomRanges[id].min,randomRanges[id].max);setValue(v)};
   wrap.appendChild(top);
   if(isMeta)wrap.appendChild(input);
   else wrap.appendChild(makeRandomRangeBar('a',id,c,randomRanges,input,()=>target[id],setValue));
@@ -103,9 +105,9 @@ function makeRhythmControl(id,c){
   const lab=document.createElement('span');lab.className='label';lab.textContent=c.label;
   const right=document.createElement('span');const val=document.createElement('span');val.className='value';val.id='rv_'+id;val.textContent=fmt(rhythmState[id],c);
   right.appendChild(val);right.append(' ',makeLockButton('r',id));top.append(lab,right);
-  const input=document.createElement('input');input.type='range';input.min=c.min;input.max=c.max;input.step=c.step;input.value=rhythmState[id];input.id='rp_'+id;
-  const setValue=v=>{rhythmState[id]=snapConfigValue(v,c);input.value=rhythmState[id];val.textContent=fmt(rhythmState[id],c);if(rhythmMorphState)delete rhythmMorphState.targets[id];if(id==='grooveMix'){grooveBlendAmount=rhythmState.grooveMix;rebuildCurrentRhythmPattern()}applyGlobals()};
-  input.oninput=()=>setValue(clamp(Number(input.value),rhythmRandomRanges[id].min,rhythmRandomRanges[id].max));
+  const input=document.createElement('input');input.type='range';input.min=0;input.max=1000;input.step=1;input.value=Math.round(toNorm(rhythmState[id],c)*1000);input.id='rp_'+id;
+  const setValue=v=>{rhythmState[id]=snapConfigValue(v,c);input.value=Math.round(toNorm(rhythmState[id],c)*1000);val.textContent=fmt(rhythmState[id],c);if(rhythmMorphState)delete rhythmMorphState.targets[id];if(id==='grooveMix'){grooveBlendAmount=rhythmState.grooveMix;rebuildCurrentRhythmPattern()}applyGlobals()};
+  input.oninput=()=>setValue(clamp(fromNorm(Number(input.value)/1000,c),rhythmRandomRanges[id].min,rhythmRandomRanges[id].max));
   wrap.append(top,makeRandomRangeBar('r',id,c,rhythmRandomRanges,input,()=>rhythmState[id],setValue));return wrap;
 }
 const rhythmEl=$('#rhythmControls');for(const [id,c] of Object.entries(rhythmConfigs))rhythmEl.appendChild(makeRhythmControl(id,c));
@@ -115,17 +117,17 @@ function makeMixerControl(id,c,masterStrip=false){
   const top=document.createElement('div');top.className='controlTop';const lab=document.createElement('span');lab.className='label';lab.textContent=c.label;
   const right=document.createElement('span');const val=document.createElement('span');val.className='value';val.id='mv_'+id;val.textContent=fmt(mixerState[id],c);
   right.appendChild(val);right.append(' ',makeLockButton('m',id));top.append(lab,right);
-  const input=document.createElement('input');input.type='range';input.min=c.min;input.max=c.max;input.step=c.step;input.value=mixerState[id];input.id='mp_'+id;
-  const setValue=v=>{mixerState[id]=snapConfigValue(v,c);input.value=mixerState[id];val.textContent=fmt(mixerState[id],c);if(mixerMorphState)delete mixerMorphState.targets[id];applyGlobals()};
-  input.oninput=()=>setValue(clamp(Number(input.value),mixerRandomRanges[id].min,mixerRandomRanges[id].max));
+  const input=document.createElement('input');input.type='range';input.min=0;input.max=1000;input.step=1;input.value=Math.round(toNorm(mixerState[id],c)*1000);input.id='mp_'+id;
+  const setValue=v=>{mixerState[id]=snapConfigValue(v,c);input.value=Math.round(toNorm(mixerState[id],c)*1000);val.textContent=fmt(mixerState[id],c);if(mixerMorphState)delete mixerMorphState.targets[id];applyGlobals()};
+  input.oninput=()=>setValue(clamp(fromNorm(Number(input.value)/1000,c),mixerRandomRanges[id].min,mixerRandomRanges[id].max));
   const meter=document.createElement('div');meter.className='mixerMeter';const bar=document.createElement('span');bar.id='mm_'+id;meter.appendChild(bar);
   wrap.append(top,makeRandomRangeBar('m',id,c,mixerRandomRanges,input,()=>mixerState[id],setValue),meter);return wrap
 }
 const mixerEl=$('#mixerControls');['master','sampleRhythm','kick','snare','hat','perc'].forEach((id,ix)=>mixerEl.appendChild(makeMixerControl(id,mixerConfigs[id],id==='master')));
 const e808El=$('#eightOhEightControls');['e808mix','e808kick','e808snare','e808hat','e808perc','e808bass','bassAttack','bassRelease','bassTone','bassGap'].forEach((id,ix)=>e808El.appendChild(makeMixerControl(id,mixerConfigs[id],id==='e808mix')));
 
-function syncMixerControl(id){const c=mixerConfigs[id],el=$('#mp_'+id),v=$('#mv_'+id);if(el)el.value=mixerState[id];if(v)v.textContent=fmt(mixerState[id],c)}
-function syncRhythmControl(id){const c=rhythmConfigs[id],el=$('#rp_'+id),v=$('#rv_'+id);if(el)el.value=rhythmState[id];if(v)v.textContent=fmt(rhythmState[id],c)}
-function syncControl(id,target,config){const el=$('#p_'+id),v=$('#v_'+id);if(el)el.value=target[id];if(v)v.textContent=fmt(target[id],config)}
+function syncMixerControl(id){const c=mixerConfigs[id],el=$('#mp_'+id),v=$('#mv_'+id);if(el)el.value=Math.round(toNorm(mixerState[id],c)*1000);if(v)v.textContent=fmt(mixerState[id],c)}
+function syncRhythmControl(id){const c=rhythmConfigs[id],el=$('#rp_'+id),v=$('#rv_'+id);if(el)el.value=Math.round(toNorm(rhythmState[id],c)*1000);if(v)v.textContent=fmt(rhythmState[id],c)}
+function syncControl(id,target,config){const el=$('#p_'+id),v=$('#v_'+id);if(el){const isMeta=el.closest('#metaControls');el.value=isMeta?target[id]:Math.round(toNorm(target[id],config)*1000)}if(v)v.textContent=fmt(target[id],config)}
 
 function lockSetFor(scope){return scope
