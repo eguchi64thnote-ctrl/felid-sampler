@@ -55,7 +55,7 @@ const rhythmConfigs={
   evolveBars:{label:'EVOLVE EVERY',min:1,max:16,step:1,def:2,unit:'bars',rmin:1,rmax:8}
 };
 const mixerConfigs={
-  master:{label:'MASTER',min:0,max:1,step:.01,def:.74,unit:'%',rmin:.46,rmax:.9},
+  master:{label:'MASTER',min:0,max:1.2,step:.01,def:.95,unit:'%',rmin:.62,rmax:1.12},
   sampleRhythm:{label:'MAGIC CUTS',min:0,max:1.25,step:.01,def:.82,unit:'%',rmin:.22,rmax:1.15},
   kick:{label:'CUT KICK',min:0,max:1.25,step:.01,def:1.0,unit:'%',rmin:.28,rmax:1.2},
   snare:{label:'CUT SNARE',min:0,max:1.25,step:.01,def:.82,unit:'%',rmin:.16,rmax:1.12},
