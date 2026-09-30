@@ -1,0 +1,53 @@
+==='r'?rhythmLocked:scope==='m'?mixerLocked:locked}
+function lockButtonId(scope,id){return 'lock_'+scope+'_'+id}
+function makeLockButton(scope,id){const b=document.createElement('button');b.className='lock';b.id=lockButtonId(scope,id);b.textContent='WALK';b.title='Random Walk active for this parameter — click to HOLD / freeze it';b.onclick=()=>toggleLock(scope,id);return b}
+function syncLockButton(scope,id){const set=lockSetFor(scope),b=$('#'+lockButtonId(scope,id));if(!b)return;const held=set.has(id);b.classList.toggle('locked',held);b.textContent=held?'HOLD':'WALK';b.title=held?'Fixed: Random Walk and one-shot random will not move this parameter — click to resume WALK':'Random Walk active for this parameter — click to HOLD / freeze it'}
+function toggleLock(scope,id){const set=lockSetFor(scope);if(set.has(id))set.delete(id);else set.add(id);if(set.has(id)){if(scope==='a'&&morphState)delete morphState.targets[id];if(scope==='r'&&rhythmMorphState)delete rhythmMorphState.targets[id];if(scope==='m'&&mixerMorphState)delete mixerMorphState.targets[id]}const bank=scope==='r'?walkAgents.rhythm:scope==='m'?walkAgents.mixer:walkAgents.ambient;bank[id]=makeWalkAgent();syncLockButton(scope,id)}
+function clearAllHolds(){locked.clear();rhythmLocked.clear();mixerLocked.clear();for(const id of Object.keys(configs))syncLockButton('a',id);for(const id of Object.keys(rhythmConfigs))syncLockButton('r',id);for(const id of Object.keys(mixerConfigs))syncLockButton('m',id)}
+
+// ---------- material groups / source switches ----------
+const GROUPS=new Map();
+const MATERIALS=new Map();
+const ORIGINAL_GROUP='g-magic-hour';
+GROUPS.set(ORIGINAL_GROUP,{id:ORIGINAL_GROUP,name:'FeLid Magic Hour',active:true,weight:1,builtin:true});
+const MAGIC_TITLES=["Karesansui in the air #2","Hello, World","Magic hour (disco)","Environmental Mood","Rotate Dub","Yuudachi Dub #2","Akirame Mo Kanzin","Harmonics Dub #2","Sense of Gradation"];
+for(let t=1;t<=MAGIC_TITLES.length;t++){
+  const id='builtin-t'+t;
+  MATERIALS.set(id,{id,name:MAGIC_TITLES[t-1],groupId:ORIGINAL_GROUP,enabled:true,builtin:true,sampleIndices:[]});
+}
+SAMPLE_DATA.forEach((m,i)=>{m.materialId='builtin-t'+m.track;m.groupId=ORIGINAL_GROUP;m.sourceName=m.title||MAGIC_TITLES[m.track-1];MATERIALS.get(m.materialId).sampleIndices.push(i)});
+let userMaterialCounter=0,groupCounter=0;
+
+function safeGroupName(name){return String(name||'').trim().replace(/s+/g,' ').slice(0,40)}
+function uniqueGroupName(base){let name=safeGroupName(base)||'GROUP '+(groupCounter+1),n=2;const taken=()=>[...GROUPS.values()].some(g=>g.name.toLowerCase()===name.toLowerCase());const root=name;while(taken())name=root+' '+n++;return name}
+function addGroup(name){const clean=uniqueGroupName(name);const id='g-user-'+(++groupCounter);GROUPS.set(id,{id,name:clean,active:true,weight:1,builtin:false});renderGroups();return id}
+function moveMaterial(materialId,groupId){const m=MATERIALS.get(materialId);if(!m||m.builtin||!GROUPS.has(groupId))return;m.groupId=groupId;for(const i of m.sampleIndices)if(SAMPLE_DATA[i])SAMPLE_DATA[i].groupId=groupId;renderGroups()}
+function deleteMaterial(materialId){const m=MATERIALS.get(materialId);if(!m||m.builtin)return;m.enabled=false;for(const i of m.sampleIndices){buffers[i]=null;if(SAMPLE_DATA[i])SAMPLE_DATA[i].disabled=true}MATERIALS.delete(materialId);renderGroups();updateLoadCount()}
+function updateGroupSelect(){const sel=$('#uploadGroup');const prev=sel.value;sel.innerHTML='';for(const g of GROUPS.values()){const o=document.createElement('option');o.value=g.id;o.textContent=g.name;sel.appendChild(o)}if(GROUPS.has(prev))sel.value=prev;else sel.value=[...GROUPS.keys()].find(k=>k!==ORIGINAL_GROUP)||ORIGINAL_GROUP}
+function renderGroups(){
+  updateGroupSelect();const root=$('#groups');root.innerHTML='';
+  for(const g of GROUPS.values()){
+    const mats=[...MATERIALS.values()].filter(m=>m.groupId===g.id);
+    const enabled=mats.filter(m=>m.enabled).length;
+    const card=document.createElement('div');card.className='groupCard'+(g.active?'':' groupOff');card.dataset.group=g.id;
+    const head=document.createElement('div');head.className='groupHead';
+    const tog=document.createElement('button');tog.className='groupToggle'+(g.active?' active':'');tog.textContent=g.active?'ON':'OFF';tog.onclick=()=>{g.active=!g.active;renderGroups()};
+    const title=document.createElement('div');title.innerHTML='<div class="groupName"></div><div class="groupMeta"></div>';title.querySelector('.groupName').textContent=g.name;title.querySelector('.groupMeta').textContent=enabled+'/'+mats.length+' materials enabled';
+    const solo=document.createElement('button');solo.className='groupSolo';solo.textContent='SOLO';solo.onclick=()=>{for(const gg of GROUPS.values())gg.active=gg.id===g.id;renderGroups()};
+    head.append(tog,title,solo);card.appendChild(head);
+    const weight=document.createElement('div');weight.className='groupWeight';const wl=document.createElement('span');wl.textContent='WEIGHT';const wr=document.createElement('input');wr.type='range';wr.min='0.05';wr.max='2';wr.step='.05';wr.value=g.weight;const wv=document.createElement('span');wv.textContent=g.weight.toFixed(2)+'×';wr.oninput=()=>{g.weight=Number(wr.value);wv.textContent=g.weight.toFixed(2)+'×'};weight.append(wl,wr,wv);card.appendChild(weight);
+    const list=document.createElement('div');list.className='materialList';
+    if(!mats.length){const e=document.createElement('div');e.className='emptyGroup';e.textContent='No materials yet';list.appendChild(e)}
+    for(const m of mats){
+      const row=document.createElement('div');row.className='materialRow';row.dataset.material=m.id;
+      const mt=document.createElement('button');mt.className='matToggle'+(m.enabled?' active':'');mt.textContent=m.enabled?'●':'○';mt.title='Enable / disable material';mt.onclick=()=>{m.enabled=!m.enabled;renderGroups()};
+      const nm=document.createElement('div');nm.className='matName';nm.textContent=m.name;
+      row.append(mt,nm);
+      if(!m.builtin){const mv=document.createElement('select');mv.className='selectInput matMove';for(const gg of GROUPS.values()){const o=document.createElement('option');o.value=gg.id;o.textContent=gg.name;mv.appendChild(o)}mv.value=m.groupId;mv.onchange=()=>moveMaterial(m.id,mv.value);row.appendChild(mv);const del=document.createElement('button');del.className='matDelete';del.textContent='×';del.title='Remove material';del.onclick=()=>deleteMaterial(m.id);row.appendChild(del)}
+      else {const tag=document.createElement('span');tag.className='groupMeta';tag.textContent=m.sampleIndices.length+' cells';row.appendChild(tag);const spacer=document.createElement('span');row.appendChild(spacer)}
+      list.appendChild(row);
+    }
+    card.appendChild(list);root.appendChild(card);
+  }
+}
+function updateLoadCount(){const total=SAMPLE_DATA.reduce((n,d)=>n+(!d.disabled?1:0),0);const loaded=buffers.reduce((n,b,i)=>n+(b&&!SAMPLE_DATA[i]?.disabled?1:0),0);$('#loadCount').textContent=loaded+'/'+tota
