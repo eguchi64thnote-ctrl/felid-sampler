@@ -21,4 +21,5 @@ resetWalkAgents();requestAnimationFrame(updateRandomWalk);
 function setContinuousRandom(on){evolving=!!on;morphState=null;rhythmMorphState=null;mixerMorphState=null;if(evolving)resetWalkAgents();for(const id of ['evolve','continuousRandom']){const b=$('#'+id);if(!b)continue;b.classList.toggle('on',evolving);b.textContent=evolving?'RANDOM WALK ON':'RANDOM WALK OFF'}$('#status').textContent=evolving?(running?'GENERATING / RANDOM WALK':'RANDOM WALK / press PLAY'):(running?'GENERATING':(ctx?'STOPPED':'READY — press PLAY'))}
 $('#evolve').onclick=()=>setContinuousRandom(!evolving);$('#continuousRandom').onclick=()=>setContinuousRandom(!evolving);
 $('#resetRandomRanges').onclick=resetRandomRanges;
+setContinuousRandom(true);
 
