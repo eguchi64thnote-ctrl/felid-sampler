@@ -287,18 +287,24 @@ button{font-size:12px}
   grid-template-columns:repeat(4,minmax(74px,1fr));
   gap:6px;
 }
-.snapshotSlot{
+.snapshotSlot,.snapshotDefault{
   padding:7px 10px;
   font-size:9px;
   min-height:32px;
   white-space:nowrap;
+}
+.snapshotDefault{
+  color:var(--accent);
+  border-color:var(--accent);
+  background:#11160e;
+  font-weight:700;
 }
 .snapshotSlot.saved{
   color:var(--accent);
   border-color:#536049;
   background:#11160e;
 }
-.snapshotSlot.recalled{
+.snapshotSlot.recalled,.snapshotDefault.recalled{
   box-shadow:inset 0 0 0 1px var(--accent);
 }
 .snapshotHint{
@@ -314,7 +320,7 @@ button{font-size:12px}
   }
   .snapshotLabel{font-size:8px}
   .snapshotSlots{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
-  .snapshotSlot{min-width:0;min-height:34px;padding:5px 2px;font-size:7px}
+  .snapshotSlot,.snapshotDefault{min-width:0;min-height:34px;padding:5px 2px;font-size:7px}
   .snapshotHint{font-size:7px}
 }
 @media(max-width:430px){
