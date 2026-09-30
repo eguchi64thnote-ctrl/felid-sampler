@@ -18,7 +18,7 @@
   <div><h1>“Karesansui in the air” Generator<br><span class="titleSub">- Magic Hour Ver. -</span></h1><div class="sub">ambient · experimental · dub · generative rhythm · mixer · synthetic 808 layer · silence as material / built from <em>Magic Hour</em></div></div>
   <div class="transport">
     <button id="play" class="primary">PLAY</button>
-    <button id="evolve">RANDOM WALK OFF</button>
+    <button id="evolve" class="on">RANDOM WALK ON</button>
   </div>
 </header>
 <div class="statusrow">
@@ -64,7 +64,7 @@
     </div>
     <div class="sectionTitle">Random movement</div>
     <div class="randomBox">
-      <div class="randomActions"><button id="continuousRandom">RANDOM WALK OFF</button></div>
+      <div class="randomActions"><button id="continuousRandom" class="on">RANDOM WALK ON</button></div>
       <div class="randomSubActions"><button id="resetRandomRanges" style="grid-column:1/-1">RESET ALL RANDOM RANGES</button></div>
       <div class="metaControls" id="metaControls"></div>
       <div class="randomHint"><strong>RANDOM WALK ON</strong> continuously moves every sound parameter at the same time — ENGINE / SOUND / SILENCE, RHYTHM ENGINE, MIXER, and 808 SYNTH LAYER. Each control has its own independent direction and speed and keeps drifting inside its own RANDOM RANGE. Press WALK beside any parameter to switch it to HOLD; that parameter freezes immediately while every other unlocked parameter keeps moving. WALK SPEED controls continuous movement.</div>
@@ -88,7 +88,7 @@
 <div id="iosInstallHint" class="iosInstallHint"><strong>iPhone:</strong> Safariの共有ボタン →「ホーム画面に追加」でフルスクリーンのアプリとして使えます。<button id="closeInstallHint" aria-label="close">×</button></div>
 <nav class="mobileDock" aria-label="mobile quick controls">
   <button id="mobilePlay" class="mobilePrimary">PLAY</button>
-  <button id="mobileWalk">RANDOM<br>WALK</button>
+  <button id="mobileWalk" class="mobileOn">RANDOM<br>WALK ON</button>
   <button id="mobileRhythm">RHYTHM<br>OFF</button>
 </nav>
 <script src="app.js" defer></script>
