@@ -1,3 +1,4 @@
+(step%currentDivision===0 ? .08 : 0),.45,1.18);scheduleRhythmHit(role,rhythmNextStep+roleTimingOffset(role,step,stepDur),vel)}}}rhythmStep=(rhythmStep+1)%totalSteps;if(rhythmStep===0)rhythmBar++;rhythmNextStep+=stepDur}}
 function toggleRhythm(){rhythmOn=!rhythmOn;$('#rhythmToggle').textContent=rhythmOn?'RHYTHM ON':'RHYTHM OFF';$('#rhythmToggle').classList.toggle('on',rhythmOn);$('#rhythmPulse').classList.toggle('on',rhythmOn);if(ctx)rhythmNextStep=ctx.currentTime+.04;rhythmStep=0;rhythmBar=0;buildRhythmPattern(true);updateGrooveReadout()}
 function rhythmRandomMorph(){const starts={},targets={};for(const [id,c] of Object.entries(rhythmConfigs)){if(rhythmLocked.has(id))continue;starts[id]=rhythmState[id];const range=rhythmRandomRanges[id],raw=randomValue(c,range),n0=toNorm(rhythmState[id],c),n1=toNorm(raw,c);const proposed=fromNorm(clamp(n0+(n1-n0)*meta.depth,0,1),c);targets[id]=clamp(proposed,range.min,range.max)}rhythmMorphState={start:performance.now(),dur:meta.morph*1000,starts,targets};if(rand()<.72)grooveFocus=rand()<.44?'auto':GROOVE_KEYS[Math.floor(rand()*GROOVE_KEYS.length)];updateGrooveButtons();newGroove(true)}
 function updateRhythmMorph(){if(rhythmMorphState){const t=clamp((performance.now()-rhythmMorphState.start)/rhythmMorphState.dur,0,1),e=smooth(t);for(const [id,target] of Object.entries(rhythmMorphState.targets)){const c=rhythmConfigs[id],n0=toNorm(rhythmMorphState.starts[id],c),n1=toNorm(target,c);rhythmState[id]=fromNorm(n0+(n1-n0)*e,c);syncRhythmControl(id)}applyGlobals();if(t>=1)rhythmMorphState=null}requestAnimationFrame(updateRhythmMorph)}requestAnimationFrame(updateRhythmMorph);
@@ -5,7 +6,7 @@ $('#rhythmToggle').onclick=toggleRhythm;$('#rhythmRandom').onclick=rhythmRandomM
 
 // ---------- audio ----------
 let ctx=null, master=null, compressor=null, analyser=null, dryGain=null, ambientBus=null, rhythmSampleBus=null, eightOhEightBus=null, rhythmDelaySend=null, rhythmReverbSend=null, delayNode=null, delayGain=null, feedbackGain=null, convolver=null, reverbGain=null, noiseBuffer=null;
-const rhythmRoleBuses={kick:null,snare:null,hat:null,perc:null},e808RoleBuses={kick:null,snare:null,hat:null,perc:null,bass:null};
+const rhythmRoleBuses={kick:null,snare:null,hat:null,perc:null},e808RoleBuses={kick:null,snare:null,hat:null,perc:null};
 let buffers=new Array(TOTAL).fill(null), decodedCount=0, decoding=false, running=false, scheduler=null, backgroundDecodeStarted=false;
 let eventId=0, evolving=true, lastTrack=null;
 const layers=Array.from({length:4},(_,i)=>({next:0,count:0,sample:-1,anchor:rand(),factor:[1,2.1,4.6,9.4][i],dur:[.65,1.0,1.55,2.3][i]}));
@@ -19,7 +20,7 @@ async function initAudio(){if(ctx)return;ctx=new (window.AudioContext||window.we
   analyser=ctx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.84;
   dryGain=ctx.createGain();ambientBus=ctx.createGain();rhythmSampleBus=ctx.createGain();eightOhEightBus=ctx.createGain();rhythmDelaySend=ctx.createGain();rhythmReverbSend=ctx.createGain();delayNode=ctx.createDelay(2.5);delayGain=ctx.createGain();feedbackGain=ctx.createGain();convolver=ctx.createConvolver();reverbGain=ctx.createGain();convolver.buffer=makeImpulse();noiseBuffer=makeNoise(1.2);
   ambientBus.connect(dryGain);ambientBus.connect(delayNode);ambientBus.connect(convolver);
-  for(const role of ['kick','snare','hat','perc']){rhythmRoleBuses[role]=ctx.createGain();rhythmRoleBuses[role].connect(rhythmSampleBus);e808RoleBuses[role]=ctx.createGain();e808RoleBuses[role].connect(eightOhEightBus)}e808RoleBuses.bass=ctx.createGain();e808RoleBuses.bass.connect(eightOhEightBus)
+  for(const role of ['kick','snare','hat','perc']){rhythmRoleBuses[role]=ctx.createGain();rhythmRoleBuses[role].connect(rhythmSampleBus);e808RoleBuses[role]=ctx.createGain();e808RoleBuses[role].connect(eightOhEightBus)}
   rhythmSampleBus.connect(dryGain);rhythmSampleBus.connect(rhythmDelaySend).connect(delayNode);rhythmSampleBus.connect(rhythmReverbSend).connect(convolver);eightOhEightBus.connect(dryGain);
   dryGain.connect(compressor);delayNode.connect(delayGain).connect(compressor);delayNode.connect(feedbackGain).connect(delayNode);convolver.connect(reverbGain).connect(compressor);compressor.connect(master).connect(analyser).connect(ctx.destination);applyGlobals();
 }
