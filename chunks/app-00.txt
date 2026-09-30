@@ -15,24 +15,24 @@ function toNorm(v,c){if(c.scale==='log')return Math.log(v/c.min)/Math.log(c.max/
 function fromNorm(n,c){n=clamp(n,0,1);if(c.scale==='log')return c.min*Math.pow(c.max/c.min,n);return c.min+(c.max-c.min)*n}
 
 const configs = {
-  tempo:{label:'TEMPO / PULSE',min:28,max:296,step:1,def:67,unit:'BPM',rmin:64,rmax:88},
-  density:{label:'EVENT DENSITY',min:.04,max:2.5,step:.01,def:.23,unit:'',scale:'log',rmin:.07,rmax:1.45},
-  grain:{label:'GESTURE LENGTH',min:.10,max:13,step:.01,def:9.7,unit:'s',scale:'log',rmin:.25,rmax:10.5},
+  tempo:{label:'TEMPO / PULSE',min:28,max:296,step:1,def:72,unit:'BPM',rmin:31,rmax:87},
+  density:{label:'EVENT DENSITY',min:.04,max:2.5,step:.01,def:.41,unit:'',scale:'log',rmin:.07,rmax:1.45},
+  grain:{label:'GESTURE LENGTH',min:.10,max:13,step:.01,def:5.5,unit:'s',scale:'log',rmin:.25,rmax:10.5},
   voices:{label:'VOICES',min:1,max:4,step:1,def:2,unit:'voices',rmin:1,rmax:4},
-  ma:{label:'MA / SILENCE',min:0,max:.95,step:.01,def:.30,unit:'%',rmin:.08,rmax:.90},
-  rest:{label:'MAX SILENCE',min:.4,max:20,step:.1,def:2.0,unit:'s',scale:'log',rmin:1.2,rmax:17},
-  fade:{label:'FADE / BREATH',min:.01,max:3.5,step:.001,def:.517,unit:'s',scale:'log',rmin:.08,rmax:2.6},
-  continuity:{label:'CONTINUITY',min:0,max:1,step:.01,def:.48,unit:'%',rmin:.32,rmax:.97},
-  drift:{label:'DRIFT',min:0,max:1,step:.01,def:.79,unit:'%',rmin:.04,rmax:.82},
-  pitch:{label:'PITCH RANGE',min:0,max:12,step:.1,def:6.0,unit:'st',rmin:0,rmax:8},
-  swing:{label:'TIME ASYMMETRY',min:0,max:.5,step:.01,def:.08,unit:'%',rmin:0,rmax:.4},
-  cutoff:{label:'LOWPASS',min:180,max:19000,step:1,def:4830,unit:'Hz',scale:'log',rmin:500,rmax:18000},
-  resonance:{label:'RESONANCE',min:.1,max:14,step:.1,def:4.7,unit:'',rmin:.1,rmax:5},
-  delay:{label:'DELAY SEND',min:0,max:.8,step:.01,def:.04,unit:'%',rmin:0,rmax:.26},
-  feedback:{label:'DELAY FEEDBACK',min:0,max:.78,step:.01,def:.35,unit:'%',rmin:.05,rmax:.68},
-  reverb:{label:'REVERB',min:0,max:.9,step:.01,def:.10,unit:'%',rmin:.08,rmax:.84},
-  stereo:{label:'STEREO SPREAD',min:0,max:1,step:.01,def:.84,unit:'%',rmin:.18,rmax:1},
-  level:{label:'AMBIENT LEVEL',min:0,max:1.2,step:.01,def:1.12,unit:'%',rmin:.47,rmax:1.20}
+  ma:{label:'MA / SILENCE',min:0,max:.95,step:.01,def:.37,unit:'%',rmin:.08,rmax:.90},
+  rest:{label:'MAX SILENCE',min:.4,max:20,step:.1,def:3.5,unit:'s',scale:'log',rmin:1.2,rmax:17},
+  fade:{label:'FADE / BREATH',min:.01,max:3.5,step:.001,def:.134,unit:'s',scale:'log',rmin:.08,rmax:2.6},
+  continuity:{label:'CONTINUITY',min:0,max:1,step:.01,def:.66,unit:'%',rmin:.32,rmax:.97},
+  drift:{label:'DRIFT',min:0,max:1,step:.01,def:.26,unit:'%',rmin:.04,rmax:.82},
+  pitch:{label:'PITCH RANGE',min:0,max:12,step:.1,def:2.9,unit:'st',rmin:0,rmax:12},
+  swing:{label:'TIME ASYMMETRY',min:0,max:.5,step:.01,def:.19,unit:'%',rmin:0,rmax:.4},
+  cutoff:{label:'LOWPASS',min:180,max:19000,step:1,def:689,unit:'Hz',scale:'log',rmin:500,rmax:18000},
+  resonance:{label:'RESONANCE',min:.1,max:14,step:.1,def:3.6,unit:'',rmin:.1,rmax:5},
+  delay:{label:'DELAY SEND',min:0,max:.8,step:.01,def:.03,unit:'%',rmin:0,rmax:.11},
+  feedback:{label:'DELAY FEEDBACK',min:0,max:.78,step:.01,def:.34,unit:'%',rmin:.05,rmax:.68},
+  reverb:{label:'REVERB',min:0,max:.9,step:.01,def:.09,unit:'%',rmin:.01,rmax:.86},
+  stereo:{label:'STEREO SPREAD',min:0,max:1,step:.01,def:.34,unit:'%',rmin:.18,rmax:1},
+  level:{label:'AMBIENT LEVEL',min:0,max:1.2,step:.01,def:.83,unit:'%',rmin:.65,rmax:1.00}
 };
 const metaConfigs={
   morph:{label:'MORPH TIME',min:1,max:60,step:1,def:5,unit:'s'},
@@ -40,39 +40,39 @@ const metaConfigs={
   walkSpeed:{label:'WALK SPEED',min:.15,max:3,step:.01,def:1.95,unit:'x'}
 };
 const rhythmConfigs={
-  level:{label:'RHYTHM LEVEL',min:0,max:1.2,step:.01,def:1.02,unit:'%',rmin:.72,rmax:1.12},
-  density:{label:'HIT DENSITY',min:.18,max:1.25,step:.01,def:.84,unit:'',rmin:.38,rmax:1.08},
-  complexity:{label:'COMPLEXITY',min:0,max:1,step:.01,def:.39,unit:'%',rmin:.12,rmax:.92},
-  mutation:{label:'PATTERN MUTATION',min:0,max:1,step:.01,def:.51,unit:'%',rmin:.08,rmax:.82},
-  grooveDrift:{label:'GROOVE DRIFT',min:0,max:1,step:.01,def:.78,unit:'%',rmin:.04,rmax:.95},
-  grooveMix:{label:'CURRENT GROOVE MIX',min:0,max:1,step:.01,def:.68,unit:'%',rmin:0,rmax:1},
-  swing:{label:'RHYTHM SWING',min:0,max:.68,step:.01,def:.18,unit:'%',rmin:0,rmax:.58},
-  humanize:{label:'HUMANIZE',min:0,max:.45,step:.01,def:.11,unit:'%',rmin:.01,rmax:.34},
-  slice:{label:'SLICE LENGTH',min:.025,max:6,step:.005,def:3.1,unit:'s',scale:'log',rmin:.035,rmax:3.6},
-  pitch:{label:'SLICE PITCH',min:0,max:18,step:.1,def:10.2,unit:'st',rmin:.5,rmax:13},
-  space:{label:'RHYTHM SPACE',min:0,max:.85,step:.01,def:.56,unit:'%',rmin:.03,rmax:.62},
-  breaks:{label:'RHYTHM MA',min:0,max:.9,step:.01,def:.16,unit:'%',rmin:0,rmax:.68},
-  evolveBars:{label:'EVOLVE EVERY',min:1,max:16,step:1,def:2,unit:'bars',rmin:1,rmax:8}
+  level:{label:'RHYTHM LEVEL',min:0,max:1.2,step:.01,def:.95,unit:'%',rmin:.72,rmax:1.12},
+  density:{label:'HIT DENSITY',min:.18,max:1.25,step:.01,def:.40,unit:'',rmin:.38,rmax:1.08},
+  complexity:{label:'COMPLEXITY',min:0,max:1,step:.01,def:.44,unit:'%',rmin:.12,rmax:.92},
+  mutation:{label:'PATTERN MUTATION',min:0,max:1,step:.01,def:.35,unit:'%',rmin:.08,rmax:.82},
+  grooveDrift:{label:'GROOVE DRIFT',min:0,max:1,step:.01,def:.87,unit:'%',rmin:.04,rmax:.95},
+  grooveMix:{label:'CURRENT GROOVE MIX',min:0,max:1,step:.01,def:.05,unit:'%',rmin:0,rmax:1},
+  swing:{label:'RHYTHM SWING',min:0,max:.68,step:.01,def:.01,unit:'%',rmin:0,rmax:.58},
+  humanize:{label:'HUMANIZE',min:0,max:.45,step:.01,def:.17,unit:'%',rmin:.01,rmax:.34},
+  slice:{label:'SLICE LENGTH',min:.025,max:6,step:.001,def:.908,unit:'s',scale:'log',rmin:.655,rmax:1.6},
+  pitch:{label:'SLICE PITCH',min:0,max:18,step:.1,def:9.1,unit:'st',rmin:.5,rmax:13},
+  space:{label:'RHYTHM SPACE',min:0,max:.85,step:.01,def:.30,unit:'%',rmin:.03,rmax:.62},
+  breaks:{label:'RHYTHM MA',min:0,max:.9,step:.01,def:.20,unit:'%',rmin:0,rmax:.68},
+  evolveBars:{label:'EVOLVE EVERY',min:1,max:16,step:1,def:3,unit:'bars',rmin:1,rmax:8}
 };
 const mixerConfigs={
-  master:{label:'MASTER',min:0,max:2.4,step:.01,def:2.27,unit:'%',rmin:2.17,rmax:2.37},
-  sampleRhythm:{label:'MAGIC CUTS',min:0,max:1.7,step:.01,def:1.51,unit:'%',rmin:1.00,rmax:1.58},
-  kick:{label:'CUT KICK',min:0,max:1.7,step:.01,def:1.12,unit:'%',rmin:1.05,rmax:1.60},
-  snare:{label:'CUT SNARE',min:0,max:1.7,step:.01,def:.97,unit:'%',rmin:.95,rmax:1.50},
-  hat:{label:'CUT HAT',min:0,max:1.6,step:.01,def:.92,unit:'%',rmin:.82,rmax:1.42},
-  perc:{label:'CUT PERC',min:0,max:1.6,step:.01,def:.94,unit:'%',rmin:.85,rmax:1.44},
-  e808mix:{label:'808 MIX',min:0,max:1,step:.01,def:.84,unit:'%',rmin:.59,rmax:.85},
-  e808kick:{label:'808 KICK',min:0,max:1.6,step:.01,def:.38,unit:'%',rmin:.05,rmax:.44},
-  e808snare:{label:'808 SNARE',min:0,max:1.4,step:.01,def:.76,unit:'%',rmin:.35,rmax:.82},
-  e808hat:{label:'808 HAT',min:0,max:1.4,step:.01,def:.38,unit:'%',rmin:.28,rmax:.85},
-  e808perc:{label:'808 PERC',min:0,max:1.4,step:.01,def:.37,unit:'%',rmin:0,rmax:.43},
-  e808bass:{label:'BASS / SUB',min:0,max:1,step:.01,def:.90,unit:'%',rmin:.05,rmax:.90},
+  master:{label:'MASTER',min:0,max:2.4,step:.01,def:2.33,unit:'%',rmin:2.17,rmax:2.37},
+  sampleRhythm:{label:'MAGIC CUTS',min:0,max:1.7,step:.01,def:1.26,unit:'%',rmin:1.00,rmax:1.58},
+  kick:{label:'CUT KICK',min:0,max:1.7,step:.01,def:1.36,unit:'%',rmin:1.05,rmax:1.60},
+  snare:{label:'CUT SNARE',min:0,max:1.7,step:.01,def:1.07,unit:'%',rmin:.95,rmax:1.50},
+  hat:{label:'CUT HAT',min:0,max:1.6,step:.01,def:1.05,unit:'%',rmin:.82,rmax:1.42},
+  perc:{label:'CUT PERC',min:0,max:1.6,step:.01,def:1.25,unit:'%',rmin:.85,rmax:1.44},
+  e808mix:{label:'808 MIX',min:0,max:1,step:.01,def:.86,unit:'%',rmin:.59,rmax:.85},
+  e808kick:{label:'808 KICK',min:0,max:1.6,step:.01,def:0,unit:'%',rmin:.05,rmax:.44},
+  e808snare:{label:'808 SNARE',min:0,max:1.4,step:.01,def:0,unit:'%',rmin:.35,rmax:.82},
+  e808hat:{label:'808 HAT',min:0,max:1.4,step:.01,def:0,unit:'%',rmin:.28,rmax:.85},
+  e808perc:{label:'808 PERC',min:0,max:1.4,step:.01,def:0,unit:'%',rmin:0,rmax:.43},
+  e808bass:{label:'BASS / SUB',min:0,max:1,step:.01,def:.24,unit:'%',rmin:.20,rmax:.90},
   bassAttack:{label:'BASS ATTACK',min:.002,max:.25,step:.001,def:.005,unit:'s',scale:'log',rmin:.004,rmax:.12},
   bassRelease:{label:'BASS RELEASE',min:.04,max:2.2,step:.01,def:2.2,unit:'s',scale:'log',rmin:.07,rmax:2.2},
-  bassTone:{label:'BASS TONE',min:0,max:1,step:.01,def:.32,unit:'%',rmin:.31,rmax:.51},
-  bassGap:{label:'GAP FILL',min:0,max:1,step:.01,def:.25,unit:'%',rmin:.10,rmax:.62}
+  bassTone:{label:'BASS TONE',min:0,max:1,step:.01,def:.35,unit:'%',rmin:.31,rmax:.51},
+  bassGap:{label:'GAP FILL',min:0,max:1,step:.01,def:.19,unit:'%',rmin:.10,rmax:.62}
 };
-const state={}, meta={}, rhythmState={}, mixerState={}, locked=new Set(), rhythmLocked=new Set(), mixerLocked=new Set(['e808kick','e808bass','bassAttack','bassRelease']);
+const state={}, meta={}, rhythmState={}, mixerState={}, locked=new Set(), rhythmLocked=new Set(), mixerLocked=new Set(['e808kick','bassAttack','bassRelease']);
 const randomRanges={}, rhythmRandomRanges={}, mixerRandomRanges={};
 for(const [k,c] of Object.entries(configs)){state[k]=c.def;randomRanges[k]={min:c.rmin??c.min,max:c.rmax??c.max}}
 for(const [k,c] of Object.entries(metaConfigs)) meta[k]=c.def;
