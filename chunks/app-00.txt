@@ -32,7 +32,7 @@ const configs = {
   feedback:{label:'DELAY FEEDBACK',min:0,max:.78,step:.01,def:.34,unit:'%',rmin:.05,rmax:.68},
   reverb:{label:'REVERB',min:0,max:.9,step:.01,def:.4,unit:'%',rmin:.08,rmax:.78},
   stereo:{label:'STEREO SPREAD',min:0,max:1,step:.01,def:.74,unit:'%',rmin:.18,rmax:1},
-  level:{label:'AMBIENT LEVEL',min:0,max:1,step:.01,def:.9,unit:'%',rmin:.62,rmax:1}
+  level:{label:'AMBIENT LEVEL',min:0,max:1.2,step:.01,def:1.0,unit:'%',rmin:.8,rmax:1.15}
 };
 const metaConfigs={
   morph:{label:'MORPH TIME',min:1,max:60,step:1,def:14,unit:'s'},
@@ -40,7 +40,7 @@ const metaConfigs={
   walkSpeed:{label:'WALK SPEED',min:.15,max:3,step:.01,def:.8,unit:'x'}
 };
 const rhythmConfigs={
-  level:{label:'RHYTHM LEVEL',min:0,max:1,step:.01,def:.78,unit:'%',rmin:.52,rmax:1},
+  level:{label:'RHYTHM LEVEL',min:0,max:1.2,step:.01,def:.92,unit:'%',rmin:.72,rmax:1.12},
   density:{label:'HIT DENSITY',min:.18,max:1.25,step:.01,def:.68,unit:'',rmin:.3,rmax:1.08},
   complexity:{label:'COMPLEXITY',min:0,max:1,step:.01,def:.46,unit:'%',rmin:.12,rmax:.92},
   mutation:{label:'PATTERN MUTATION',min:0,max:1,step:.01,def:.28,unit:'%',rmin:.08,rmax:.82},
@@ -55,17 +55,17 @@ const rhythmConfigs={
   evolveBars:{label:'EVOLVE EVERY',min:1,max:16,step:1,def:2,unit:'bars',rmin:1,rmax:8}
 };
 const mixerConfigs={
-  master:{label:'MASTER',min:0,max:2,step:.01,def:1.55,unit:'%',rmin:1.18,rmax:1.82},
-  sampleRhythm:{label:'MAGIC CUTS',min:0,max:1.5,step:.01,def:1.18,unit:'%',rmin:.72,rmax:1.4},
-  kick:{label:'CUT KICK',min:0,max:1.5,step:.01,def:1.24,unit:'%',rmin:.78,rmax:1.42},
-  snare:{label:'CUT SNARE',min:0,max:1.5,step:.01,def:1.08,unit:'%',rmin:.7,rmax:1.35},
-  hat:{label:'CUT HAT',min:0,max:1.5,step:.01,def:.96,unit:'%',rmin:.58,rmax:1.28},
-  perc:{label:'CUT PERC',min:0,max:1.5,step:.01,def:1.0,unit:'%',rmin:.6,rmax:1.3},
-  e808mix:{label:'808 MIX',min:0,max:1,step:.01,def:.16,unit:'%',rmin:.05,rmax:.4},
-  e808kick:{label:'808 KICK',min:0,max:1.4,step:.01,def:1.02,unit:'%',rmin:.55,rmax:1.25},
-  e808snare:{label:'808 SNARE',min:0,max:1.3,step:.01,def:.55,unit:'%',rmin:.2,rmax:.85},
-  e808hat:{label:'808 HAT',min:0,max:1.3,step:.01,def:.4,unit:'%',rmin:.15,rmax:.7},
-  e808perc:{label:'808 PERC',min:0,max:1.3,step:.01,def:.35,unit:'%',rmin:.12,rmax:.7}
+  master:{label:'MASTER',min:0,max:2.4,step:.01,def:1.85,unit:'%',rmin:1.5,rmax:2.2},
+  sampleRhythm:{label:'MAGIC CUTS',min:0,max:1.7,step:.01,def:1.38,unit:'%',rmin:1.0,rmax:1.58},
+  kick:{label:'CUT KICK',min:0,max:1.7,step:.01,def:1.42,unit:'%',rmin:1.05,rmax:1.6},
+  snare:{label:'CUT SNARE',min:0,max:1.7,step:.01,def:1.28,unit:'%',rmin:.95,rmax:1.5},
+  hat:{label:'CUT HAT',min:0,max:1.6,step:.01,def:1.12,unit:'%',rmin:.82,rmax:1.42},
+  perc:{label:'CUT PERC',min:0,max:1.6,step:.01,def:1.16,unit:'%',rmin:.85,rmax:1.44},
+  e808mix:{label:'808 MIX',min:0,max:1,step:.01,def:.22,unit:'%',rmin:.08,rmax:.48},
+  e808kick:{label:'808 KICK',min:0,max:1.6,step:.01,def:1.2,unit:'%',rmin:.85,rmax:1.45},
+  e808snare:{label:'808 SNARE',min:0,max:1.4,step:.01,def:.68,unit:'%',rmin:.35,rmax:1.0},
+  e808hat:{label:'808 HAT',min:0,max:1.4,step:.01,def:.52,unit:'%',rmin:.28,rmax:.85},
+  e808perc:{label:'808 PERC',min:0,max:1.4,step:.01,def:.48,unit:'%',rmin:.25,rmax:.82}
 };
 const state={}, meta={}, rhythmState={}, mixerState={}, locked=new Set(), rhythmLocked=new Set(), mixerLocked=new Set();
 const randomRanges={}, rhythmRandomRanges={}, mixerRandomRanges={};
