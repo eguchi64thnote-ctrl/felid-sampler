@@ -68,21 +68,33 @@ window.addEventListener('orientationchange',()=>setTimeout(balanceIPhoneColumns,
 
 
 // ---------- parameter memory snapshots ----------
-const SNAPSHOT_STORAGE_KEY='felid-generator-memory-v2';
+const SNAPSHOT_STORAGE_KEY='felid-generator-memory-v3';
+const V2_SNAPSHOT_STORAGE_KEY='felid-generator-memory-v2';
 const LEGACY_SNAPSHOT_STORAGE_KEY='felid-generator-memory-v1';
 function clonePlain(v){return JSON.parse(JSON.stringify(v))}
 function safeParseJSON(raw){try{return raw?JSON.parse(raw):null}catch(e){return null}}
 function loadMemoryState(){
   const current=safeParseJSON(localStorage.getItem(SNAPSHOT_STORAGE_KEY));
-  if(current&&current.version===2&&current.slots)return current;
+  if(current&&current.version===3&&current.slots)return current;
+
+  const v2=safeParseJSON(localStorage.getItem(V2_SNAPSHOT_STORAGE_KEY));
+  if(v2&&v2.version===2){
+    const migrated={
+      version:3,
+      default2:v2.default2||null,
+      default3:v2.slots?.['1']||null,
+      slots:{'1':v2.slots?.['2']||null}
+    };
+    try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(migrated))}catch(e){}
+    return migrated;
+  }
+
   const legacy=safeParseJSON(localStorage.getItem(LEGACY_SNAPSHOT_STORAGE_KEY))||{};
   const migrated={
-    version:2,
+    version:3,
     default2:legacy['1']||null,
-    slots:{
-      '1':legacy['2']||null,
-      '2':legacy['3']||null
-    }
+    default3:legacy['2']||null,
+    slots:{'1':legacy['3']||null}
   };
   try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(migrated))}catch(e){}
   return migrated;
@@ -90,6 +102,7 @@ function loadMemoryState(){
 let memoryState=loadMemoryState();
 let snapshotSlots=memoryState.slots||{};
 let default2Snapshot=memoryState.default2||null;
+let default3Snapshot=memoryState.default3||null;
 
 function captureSnapshot(){
   return {
@@ -122,7 +135,7 @@ function captureSnapshot(){
   };
 }
 function persistMemoryState(){
-  memoryState={version:2,default2:default2Snapshot,slots:snapshotSlots};
+  memoryState={version:3,default2:default2Snapshot,default3:default3Snapshot,slots:snapshotSlots};
   try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(memoryState))}catch(e){}
 }
 function updateSnapshotButtons(){
@@ -134,12 +147,14 @@ function updateSnapshotButtons(){
       ?'Tap to recall SAVE '+slot+'. Hold to overwrite it with the current state.'
       :'Tap to save the current state to SAVE '+slot+'.';
   });
-  const d2=$('#default2Snapshot');
-  if(d2){
-    d2.disabled=!default2Snapshot;
-    d2.title=default2Snapshot
-      ?'Recall the former RECALL 1 state.'
-      :'DEFAULT 2 is unavailable because no former RECALL 1 was found in this browser.';
+  const defs=[
+    ['#default2Snapshot',default2Snapshot,'DEFAULT 2'],
+    ['#default3Snapshot',default3Snapshot,'DEFAULT 3']
+  ];
+  for(const [sel,data,label] of defs){
+    const b=$(sel);if(!b)continue;
+    b.disabled=!data;
+    b.title=data?('Recall '+label+'.'):(label+' is unavailable because the source memory was not found in this browser.');
   }
 }
 function flashSnapshotStatus(text){
@@ -240,7 +255,8 @@ function restoreSnapshotData(s,label){
   syncMobileDock();
 
   document.querySelectorAll('.snapshotSlot,.snapshotDefault').forEach(b=>b.classList.remove('recalled'));
-  const active=label==='DEFAULT 1'?'#default1Snapshot':label==='DEFAULT 2'?'#default2Snapshot':null;
+  const map={'DEFAULT 1':'#default1Snapshot','DEFAULT 2':'#default2Snapshot','DEFAULT 3':'#default3Snapshot'};
+  const active=map[label];
   if(active){const b=$(active);if(b){b.classList.add('recalled');setTimeout(()=>b.classList.remove('recalled'),650)}}
   else{
     const m=String(label||'').match(/SAVE\s+(\d+)/);
@@ -248,9 +264,7 @@ function restoreSnapshotData(s,label){
   }
   flashSnapshotStatus(label+' RECALLED');
 }
-function restoreSnapshot(slot){
-  restoreSnapshotData(snapshotSlots[String(slot)],'SAVE '+slot);
-}
+function restoreSnapshot(slot){restoreSnapshotData(snapshotSlots[String(slot)],'SAVE '+slot)}
 function makeDefault1Snapshot(){
   const valuesFrom=defs=>Object.fromEntries(Object.entries(defs).map(([id,c])=>[id,c.def]));
   const rangesFrom=defs=>Object.fromEntries(Object.entries(defs).map(([id,c])=>[id,{min:c.rmin??c.min,max:c.rmax??c.max}]));
@@ -264,42 +278,19 @@ function makeDefault1Snapshot(){
     randomRanges:rangesFrom(configs),
     rhythmRandomRanges:rangesFrom(rhythmConfigs),
     mixerRandomRanges:rangesFrom(mixerConfigs),
-    holds:{
-      ambient:[],
-      rhythm:[],
-      mixer:['e808kick','bassAttack','bassRelease']
-    },
+    holds:{ambient:[],rhythm:[],mixer:['e808kick','bassAttack','bassRelease']},
     randomWalk:true,
-    rhythm:{
-      on:false,
-      grooveFocus:'auto',
-      groovePrimary:'house',
-      grooveSecondary:'jazz',
-      grooveBlendAmount:.05,
-      divisionFocus:'auto',
-      currentDivision:11
-    },
-    groups:[...GROUPS.values()].map(g=>({
-      id:g.id,
-      active:g.builtin?true:false,
-      weight:g.builtin?1:(Number(g.weight)||1)
-    })),
-    materials:[...MATERIALS.values()].map(m=>({
-      id:m.id,
-      enabled:m.builtin?true:false,
-      groupId:m.groupId
-    }))
+    rhythm:{on:false,grooveFocus:'auto',groovePrimary:'house',grooveSecondary:'jazz',grooveBlendAmount:.05,divisionFocus:'auto',currentDivision:11},
+    groups:[...GROUPS.values()].map(g=>({id:g.id,active:g.builtin?true:false,weight:g.builtin?1:(Number(g.weight)||1)})),
+    materials:[...MATERIALS.values()].map(m=>({id:m.id,enabled:m.builtin?true:false,groupId:m.groupId}))
   };
 }
-function restoreDefault1(){
-  restoreSnapshotData(makeDefault1Snapshot(),'DEFAULT 1');
-}
-function restoreDefault2(){
-  if(!default2Snapshot)return;
-  restoreSnapshotData(default2Snapshot,'DEFAULT 2');
-}
+function restoreDefault1(){restoreSnapshotData(makeDefault1Snapshot(),'DEFAULT 1')}
+function restoreDefault2(){if(default2Snapshot)restoreSnapshotData(default2Snapshot,'DEFAULT 2')}
+function restoreDefault3(){if(default3Snapshot)restoreSnapshotData(default3Snapshot,'DEFAULT 3')}
 $('#default1Snapshot')?.addEventListener('click',restoreDefault1);
 $('#default2Snapshot')?.addEventListener('click',restoreDefault2);
+$('#default3Snapshot')?.addEventListener('click',restoreDefault3);
 
 function bindSnapshotButtons(){
   document.querySelectorAll('.snapshotSlot').forEach(b=>{
@@ -307,9 +298,7 @@ function bindSnapshotButtons(){
     const slot=b.dataset.slot;
     b.addEventListener('pointerdown',()=>{
       longFired=false;
-      if(snapshotSlots[slot]){
-        timer=setTimeout(()=>{longFired=true;saveSnapshot(slot);if(navigator.vibrate)navigator.vibrate(25)},650);
-      }
+      if(snapshotSlots[slot])timer=setTimeout(()=>{longFired=true;saveSnapshot(slot);if(navigator.vibrate)navigator.vibrate(25)},650);
     });
     const finish=()=>{
       if(timer){clearTimeout(timer);timer=null}
@@ -329,6 +318,7 @@ function bindSnapshotButtons(){
       }
     });
   });
+  persistMemoryState();
   updateSnapshotButtons();
 }
 bindSnapshotButtons();
