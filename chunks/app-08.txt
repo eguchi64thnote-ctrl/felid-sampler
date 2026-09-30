@@ -68,16 +68,28 @@ window.addEventListener('orientationchange',()=>setTimeout(balanceIPhoneColumns,
 
 
 // ---------- parameter memory snapshots ----------
-const SNAPSHOT_STORAGE_KEY='felid-generator-memory-v1';
+const SNAPSHOT_STORAGE_KEY='felid-generator-memory-v2';
+const LEGACY_SNAPSHOT_STORAGE_KEY='felid-generator-memory-v1';
 function clonePlain(v){return JSON.parse(JSON.stringify(v))}
-function loadSnapshotSlots(){
-  try{
-    const raw=localStorage.getItem(SNAPSHOT_STORAGE_KEY);
-    const parsed=raw?JSON.parse(raw):{};
-    return parsed&&typeof parsed==='object'?parsed:{};
-  }catch(e){return {}}
+function safeParseJSON(raw){try{return raw?JSON.parse(raw):null}catch(e){return null}}
+function loadMemoryState(){
+  const current=safeParseJSON(localStorage.getItem(SNAPSHOT_STORAGE_KEY));
+  if(current&&current.version===2&&current.slots)return current;
+  const legacy=safeParseJSON(localStorage.getItem(LEGACY_SNAPSHOT_STORAGE_KEY))||{};
+  const migrated={
+    version:2,
+    default2:legacy['1']||null,
+    slots:{
+      '1':legacy['2']||null,
+      '2':legacy['3']||null
+    }
+  };
+  try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(migrated))}catch(e){}
+  return migrated;
 }
-let snapshotSlots=loadSnapshotSlots();
+let memoryState=loadMemoryState();
+let snapshotSlots=memoryState.slots||{};
+let default2Snapshot=memoryState.default2||null;
 
 function captureSnapshot(){
   return {
@@ -109,8 +121,9 @@ function captureSnapshot(){
     materials:[...MATERIALS.values()].map(m=>({id:m.id,enabled:!!m.enabled,groupId:m.groupId}))
   };
 }
-function persistSnapshotSlots(){
-  try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(snapshotSlots))}catch(e){}
+function persistMemoryState(){
+  memoryState={version:2,default2:default2Snapshot,slots:snapshotSlots};
+  try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(memoryState))}catch(e){}
 }
 function updateSnapshotButtons(){
   document.querySelectorAll('.snapshotSlot').forEach(b=>{
@@ -118,9 +131,16 @@ function updateSnapshotButtons(){
     b.textContent=s?'RECALL '+slot:'SAVE '+slot;
     b.classList.toggle('saved',!!s);
     b.title=s
-      ?'Tap to recall MEMORY '+slot+'. Hold to overwrite it with the current state.'
-      :'Tap to save the current state to MEMORY '+slot+'.';
+      ?'Tap to recall SAVE '+slot+'. Hold to overwrite it with the current state.'
+      :'Tap to save the current state to SAVE '+slot+'.';
   });
+  const d2=$('#default2Snapshot');
+  if(d2){
+    d2.disabled=!default2Snapshot;
+    d2.title=default2Snapshot
+      ?'Recall the former RECALL 1 state.'
+      :'DEFAULT 2 is unavailable because no former RECALL 1 was found in this browser.';
+  }
 }
 function flashSnapshotStatus(text){
   const s=$('#status');if(!s)return;
@@ -132,9 +152,9 @@ function flashSnapshotStatus(text){
 }
 function saveSnapshot(slot){
   snapshotSlots[String(slot)]=captureSnapshot();
-  persistSnapshotSlots();
+  persistMemoryState();
   updateSnapshotButtons();
-  flashSnapshotStatus('MEMORY '+slot+' SAVED');
+  flashSnapshotStatus('SAVE '+slot+' STORED');
 }
 function restoreObject(target,source,configsMap){
   if(!source)return;
@@ -158,8 +178,8 @@ function restoreHoldSet(set,values,valid){
   set.clear();
   for(const id of (values||[]))if(valid[id])set.add(id);
 }
-function restoreSnapshot(slot){
-  const s=snapshotSlots[String(slot)];if(!s)return;
+function restoreSnapshotData(s,label){
+  if(!s)return;
   morphState=null;rhythmMorphState=null;mixerMorphState=null;
 
   restoreObject(state,s.state,configs);
@@ -193,6 +213,8 @@ function restoreSnapshot(slot){
   if(rs.divisionFocus==='auto'||DIVISION_OPTIONS.includes(Number(rs.divisionFocus)))divisionFocus=rs.divisionFocus;
   if(DIVISION_OPTIONS.includes(Number(rs.currentDivision)))currentDivision=Number(rs.currentDivision);
   rhythmOn=!!rs.on;
+  rhythmStep=0;rhythmBar=0;
+  if(ctx)rhythmNextStep=ctx.currentTime+.04;
 
   for(const id of Object.keys(configs))syncControl(id,state,configs[id]);
   for(const id of Object.keys(metaConfigs))syncControl(id,meta,metaConfigs[id]);
@@ -205,8 +227,8 @@ function restoreSnapshot(slot){
 
   updateGrooveButtons();
   updateDivisionButtons();
+  rebuildCurrentRhythmPattern();
   updateDivisionReadout();
-  buildRhythmPattern(true);
   updateGrooveReadout();
   $('#rhythmToggle').textContent=rhythmOn?'RHYTHM ON':'RHYTHM OFF';
   $('#rhythmToggle').classList.toggle('on',rhythmOn);
@@ -217,11 +239,19 @@ function restoreSnapshot(slot){
   applyGlobals();
   syncMobileDock();
 
-  document.querySelectorAll('.snapshotSlot').forEach(b=>b.classList.toggle('recalled',b.dataset.slot===String(slot)));
-  setTimeout(()=>document.querySelectorAll('.snapshotSlot').forEach(b=>b.classList.remove('recalled')),650);
-  flashSnapshotStatus('MEMORY '+slot+' RECALLED');
+  document.querySelectorAll('.snapshotSlot,.snapshotDefault').forEach(b=>b.classList.remove('recalled'));
+  const active=label==='DEFAULT 1'?'#default1Snapshot':label==='DEFAULT 2'?'#default2Snapshot':null;
+  if(active){const b=$(active);if(b){b.classList.add('recalled');setTimeout(()=>b.classList.remove('recalled'),650)}}
+  else{
+    const m=String(label||'').match(/SAVE\s+(\d+)/);
+    if(m){const b=document.querySelector('.snapshotSlot[data-slot="'+m[1]+'"]');if(b){b.classList.add('recalled');setTimeout(()=>b.classList.remove('recalled'),650)}}
+  }
+  flashSnapshotStatus(label+' RECALLED');
 }
-function makeDefaultSnapshot(){
+function restoreSnapshot(slot){
+  restoreSnapshotData(snapshotSlots[String(slot)],'SAVE '+slot);
+}
+function makeDefault1Snapshot(){
   const valuesFrom=defs=>Object.fromEntries(Object.entries(defs).map(([id,c])=>[id,c.def]));
   const rangesFrom=defs=>Object.fromEntries(Object.entries(defs).map(([id,c])=>[id,{min:c.rmin??c.min,max:c.rmax??c.max}]));
   return {
@@ -241,7 +271,7 @@ function makeDefaultSnapshot(){
     },
     randomWalk:true,
     rhythm:{
-      on:!!rhythmOn,
+      on:false,
       grooveFocus:'auto',
       groovePrimary:'house',
       grooveSecondary:'jazz',
@@ -261,21 +291,21 @@ function makeDefaultSnapshot(){
     }))
   };
 }
-function restoreDefaultSnapshot(){
-  snapshotSlots.__default=makeDefaultSnapshot();
-  restoreSnapshot('__default');
-  delete snapshotSlots.__default;
-  const b=$('#defaultSnapshot');
-  if(b){b.classList.add('recalled');setTimeout(()=>b.classList.remove('recalled'),650)}
-  flashSnapshotStatus('DEFAULT RESTORED');
+function restoreDefault1(){
+  restoreSnapshotData(makeDefault1Snapshot(),'DEFAULT 1');
 }
-$('#defaultSnapshot')?.addEventListener('click',restoreDefaultSnapshot);
+function restoreDefault2(){
+  if(!default2Snapshot)return;
+  restoreSnapshotData(default2Snapshot,'DEFAULT 2');
+}
+$('#default1Snapshot')?.addEventListener('click',restoreDefault1);
+$('#default2Snapshot')?.addEventListener('click',restoreDefault2);
 
 function bindSnapshotButtons(){
   document.querySelectorAll('.snapshotSlot').forEach(b=>{
     let timer=null,longFired=false;
     const slot=b.dataset.slot;
-    b.addEventListener('pointerdown',e=>{
+    b.addEventListener('pointerdown',()=>{
       longFired=false;
       if(snapshotSlots[slot]){
         timer=setTimeout(()=>{longFired=true;saveSnapshot(slot);if(navigator.vibrate)navigator.vibrate(25)},650);
