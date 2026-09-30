@@ -249,3 +249,19 @@ button{font-size:12px}
   #randomSection{margin-top:18px}
   #materialSection{margin-top:2px}
 }
+
+
+/* Desktop Material Library spacing + full lists */
+@media(min-width:851px){
+  #materialSection{
+    margin-top:36px;
+  }
+  #materialSection .groups{
+    max-height:none;
+    overflow:visible;
+    padding-right:0;
+  }
+  #materialSection .materialList{
+    overflow:visible;
+  }
+}
