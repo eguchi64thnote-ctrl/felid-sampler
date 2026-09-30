@@ -2,19 +2,80 @@
 for(const [k,c] of Object.entries(mixerConfigs)){mixerState[k]=c.def;mixerRandomRanges[k]={min:c.rmin??c.min,max:c.rmax??c.max}}
 let morphState=null, rhythmMorphState=null, mixerMorphState=null, allLocked=false;
 
-function makeRandomRangeEditor(prefix,id,c,store){
-  const details=document.createElement('details');details.className='randomRange';
-  const summary=document.createElement('summary');const title=document.createElement('span');title.textContent='RANDOM RANGE';const read=document.createElement('span');read.className='randomRangeReadout';read.id='rrread_'+prefix+'_'+id;summary.append(title,read);details.appendChild(summary);
-  const body=document.createElement('div');body.className='randomRangeBody';
-  const makeLine=(which,label)=>{const row=document.createElement('label');row.className='randomRangeLine';const txt=document.createElement('span');txt.textContent=label;const input=document.createElement('input');input.type='range';input.min=0;input.max=1000;input.step=1;input.id='rr_'+prefix+'_'+which+'_'+id;row.append(txt,input);body.appendChild(row);return input};
-  const minEl=makeLine('min','MIN'),maxEl=makeLine('max','MAX');details.appendChild(body);
-  const sync=()=>{const r=store[id];minEl.value=Math.round(toNorm(r.min,c)*1000);maxEl.value=Math.round(toNorm(r.max,c)*1000);read.textContent=fmt(r.min,c)+' — '+fmt(r.max,c)};
-  minEl.oninput=()=>{let v=fromNorm(Number(minEl.value)/1000,c);if(v>store[id].max){v=store[id].max;minEl.value=Math.round(toNorm(v,c)*1000)}store[id].min=v;sync()};
-  maxEl.oninput=()=>{let v=fromNorm(Number(maxEl.value)/1000,c);if(v<store[id].min){v=store[id].min;maxEl.value=Math.round(toNorm(v,c)*1000)}store[id].max=v;sync()};
-  details._syncRange=sync;sync();return details;
+function snapConfigValue(v,c){
+  const clamped=clamp(v,c.min,c.max);
+  if(!c.step)return clamped;
+  const n=Math.round((clamped-c.min)/c.step);
+  return clamp(c.min+n*c.step,c.min,c.max);
 }
-function syncAllRandomRangeEditors(){for(const [id,c] of Object.entries(configs)){const el=$('#rrread_a_'+id)?.closest('details');if(el&&el._syncRange)el._syncRange()}for(const [id,c] of Object.entries(rhythmConfigs)){const el=$('#rrread_r_'+id)?.closest('details');if(el&&el._syncRange)el._syncRange()}for(const [id,c] of Object.entries(mixerConfigs)){const el=$('#rrread_m_'+id)?.closest('details');if(el&&el._syncRange)el._syncRange()}}
-function resetRandomRanges(){for(const [id,c] of Object.entries(configs))randomRanges[id]={min:c.rmin??c.min,max:c.rmax??c.max};for(const [id,c] of Object.entries(rhythmConfigs))rhythmRandomRanges[id]={min:c.rmin??c.min,max:c.rmax??c.max};for(const [id,c] of Object.entries(mixerConfigs))mixerRandomRanges[id]={min:c.rmin??c.min,max:c.rmax??c.max};syncAllRandomRangeEditors();resetWalkAgents()}
+function makeRandomRangeBar(prefix,id,c,store,input,getValue,setValue){
+  const shell=document.createElement('div');shell.className='rangeBarShell';shell.dataset.rangeKey=prefix+'_'+id;
+  const windowEl=document.createElement('div');windowEl.className='rangeWindow';
+  const minHandle=document.createElement('button');minHandle.type='button';minHandle.className='rangeBound rangeMin';minHandle.setAttribute('aria-label','Random minimum');
+  const maxHandle=document.createElement('button');maxHandle.type='button';maxHandle.className='rangeBound rangeMax';maxHandle.setAttribute('aria-label','Random maximum');
+  const labels=document.createElement('div');labels.className='rangeBoundLabels';
+  const minLabel=document.createElement('span'),maxLabel=document.createElement('span');labels.append(minLabel,maxLabel);
+  input.classList.add('rangeCurrent');
+  shell.append(windowEl,input,minHandle,maxHandle,labels);
+
+  const sync=()=>{
+    const r=store[id];
+    const nMin=clamp(toNorm(r.min,c),0,1),nMax=clamp(toNorm(r.max,c),0,1);
+    windowEl.style.left=(nMin*100)+'%';
+    windowEl.style.width=(Math.max(0,nMax-nMin)*100)+'%';
+    minHandle.style.left=(nMin*100)+'%';
+    maxHandle.style.left=(nMax*100)+'%';
+    minLabel.textContent='MIN '+fmt(r.min,c);
+    maxLabel.textContent='MAX '+fmt(r.max,c);
+    minHandle.title='MIN '+fmt(r.min,c);
+    maxHandle.title='MAX '+fmt(r.max,c);
+  };
+  const changeBound=(which,e)=>{
+    e.preventDefault();e.stopPropagation();
+    const handle=which==='min'?minHandle:maxHandle;
+    try{handle.setPointerCapture(e.pointerId)}catch(_){}
+    const move=ev=>{
+      const rect=shell.getBoundingClientRect();
+      const n=clamp((ev.clientX-rect.left)/Math.max(1,rect.width),0,1);
+      let v=snapConfigValue(fromNorm(n,c),c);
+      const r=store[id];
+      if(which==='min')v=Math.min(v,r.max);else v=Math.max(v,r.min);
+      r[which]=v;
+      const cur=getValue();
+      if(cur<r.min)setValue(r.min);
+      else if(cur>r.max)setValue(r.max);
+      sync();
+    };
+    const done=ev=>{
+      handle.removeEventListener('pointermove',move);
+      handle.removeEventListener('pointerup',done);
+      handle.removeEventListener('pointercancel',done);
+      try{handle.releasePointerCapture(ev.pointerId)}catch(_){}
+      resetWalkAgents();
+    };
+    handle.addEventListener('pointermove',move);
+    handle.addEventListener('pointerup',done);
+    handle.addEventListener('pointercancel',done);
+    move(e);
+  };
+  minHandle.addEventListener('pointerdown',e=>changeBound('min',e));
+  maxHandle.addEventListener('pointerdown',e=>changeBound('max',e));
+  shell._syncRange=sync;
+  sync();
+  return shell;
+}
+function syncAllRandomRangeEditors(){
+  document.querySelectorAll('.rangeBarShell[data-range-key]').forEach(el=>{if(el._syncRange)el._syncRange()});
+}
+function resetRandomRanges(){
+  for(const [id,c] of Object.entries(configs))randomRanges[id]={min:c.rmin??c.min,max:c.rmax??c.max};
+  for(const [id,c] of Object.entries(rhythmConfigs))rhythmRandomRanges[id]={min:c.rmin??c.min,max:c.rmax??c.max};
+  for(const [id,c] of Object.entries(mixerConfigs))mixerRandomRanges[id]={min:c.rmin??c.min,max:c.rmax??c.max};
+  for(const [id,c] of Object.entries(configs)){state[id]=clamp(state[id],randomRanges[id].min,randomRanges[id].max);syncControl(id,state,c)}
+  for(const [id,c] of Object.entries(rhythmConfigs)){rhythmState[id]=clamp(rhythmState[id],rhythmRandomRanges[id].min,rhythmRandomRanges[id].max);syncRhythmControl(id)}
+  for(const [id,c] of Object.entries(mixerConfigs)){mixerState[id]=clamp(mixerState[id],mixerRandomRanges[id].min,mixerRandomRanges[id].max);syncMixerControl(id)}
+  syncAllRandomRangeEditors();resetWalkAgents();applyGlobals();
+}
 
 function makeControl(id,c,target,isMeta=false){
   const wrap=document.createElement('div');wrap.className='control';
@@ -26,21 +87,45 @@ function makeControl(id,c,target,isMeta=false){
   if(!isMeta){const lock=makeLockButton('a',id);right.append(' ',lock)}
   top.append(lab,right);
   const input=document.createElement('input');input.type='range';input.min=c.min;input.max=c.max;input.step=c.step;input.value=target[id];input.id='p_'+id;
-  input.oninput=()=>{target[id]=Number(input.value);val.textContent=fmt(target[id],c); if(!isMeta && morphState) delete morphState.targets[id]; applyGlobals()};
-  wrap.append(top,input);if(!isMeta)wrap.appendChild(makeRandomRangeEditor('a',id,c,randomRanges));return wrap;
+  const setValue=v=>{target[id]=snapConfigValue(v,c);input.value=target[id];val.textContent=fmt(target[id],c);if(!isMeta&&morphState)delete morphState.targets[id];applyGlobals()};
+  input.oninput=()=>{let v=Number(input.value);if(!isMeta){v=clamp(v,randomRanges[id].min,randomRanges[id].max)}setValue(v)};
+  wrap.appendChild(top);
+  if(isMeta)wrap.appendChild(input);
+  else wrap.appendChild(makeRandomRangeBar('a',id,c,randomRanges,input,()=>target[id],setValue));
+  return wrap;
 }
 const main=$('#mainControls');for(const [id,c] of Object.entries(configs))main.appendChild(makeControl(id,c,state,false));
 const metaEl=$('#metaControls');for(const [id,c] of Object.entries(metaConfigs))metaEl.appendChild(makeControl(id,c,meta,true));
+
 function makeRhythmControl(id,c){
   const wrap=document.createElement('div');wrap.className='control';
-  const top=document.createElement('div');top.className='controlTop';const lab=document.createElement('span');lab.className='label';lab.textContent=c.label;const right=document.createElement('span');const val=document.createElement('span');val.className='value';val.id='rv_'+id;val.textContent=fmt(rhythmState[id],c);right.appendChild(val);right.append(' ',makeLockButton('r',id));top.append(lab,right);
-  const input=document.createElement('input');input.type='range';input.min=c.min;input.max=c.max;input.step=c.step;input.value=rhythmState[id];input.id='rp_'+id;input.oninput=()=>{rhythmState[id]=Number(input.value);val.textContent=fmt(rhythmState[id],c);if(rhythmMorphState)delete rhythmMorphState.targets[id];if(id==='grooveMix'){grooveBlendAmount=rhythmState.grooveMix;rebuildCurrentRhythmPattern()}applyGlobals()};wrap.append(top,input);wrap.appendChild(makeRandomRangeEditor('r',id,c,rhythmRandomRanges));return wrap;
+  const top=document.createElement('div');top.className='controlTop';
+  const lab=document.createElement('span');lab.className='label';lab.textContent=c.label;
+  const right=document.createElement('span');const val=document.createElement('span');val.className='value';val.id='rv_'+id;val.textContent=fmt(rhythmState[id],c);
+  right.appendChild(val);right.append(' ',makeLockButton('r',id));top.append(lab,right);
+  const input=document.createElement('input');input.type='range';input.min=c.min;input.max=c.max;input.step=c.step;input.value=rhythmState[id];input.id='rp_'+id;
+  const setValue=v=>{rhythmState[id]=snapConfigValue(v,c);input.value=rhythmState[id];val.textContent=fmt(rhythmState[id],c);if(rhythmMorphState)delete rhythmMorphState.targets[id];if(id==='grooveMix'){grooveBlendAmount=rhythmState.grooveMix;rebuildCurrentRhythmPattern()}applyGlobals()};
+  input.oninput=()=>setValue(clamp(Number(input.value),rhythmRandomRanges[id].min,rhythmRandomRanges[id].max));
+  wrap.append(top,makeRandomRangeBar('r',id,c,rhythmRandomRanges,input,()=>rhythmState[id],setValue));return wrap;
 }
 const rhythmEl=$('#rhythmControls');for(const [id,c] of Object.entries(rhythmConfigs))rhythmEl.appendChild(makeRhythmControl(id,c));
-function makeMixerControl(id,c,masterStrip=false){const wrap=document.createElement('div');wrap.className='mixerControl'+(masterStrip?' masterStrip':'');const top=document.createElement('div');top.className='controlTop';const lab=document.createElement('span');lab.className='label';lab.textContent=c.label;const right=document.createElement('span');const val=document.createElement('span');val.className='value';val.id='mv_'+id;val.textContent=fmt(mixerState[id],c);right.appendChild(val);right.append(' ',makeLockButton('m',id));top.append(lab,right);const input=document.createElement('input');input.type='range';input.min=c.min;input.max=c.max;input.step=c.step;input.value=mixerState[id];input.id='mp_'+id;input.oninput=()=>{mixerState[id]=Number(input.value);val.textContent=fmt(mixerState[id],c);if(mixerMorphState)delete mixerMorphState.targets[id];applyGlobals()};const meter=document.createElement('div');meter.className='mixerMeter';const bar=document.createElement('span');bar.id='mm_'+id;meter.appendChild(bar);wrap.append(top,input,meter,makeRandomRangeEditor('m',id,c,mixerRandomRanges));return wrap}
+
+function makeMixerControl(id,c,masterStrip=false){
+  const wrap=document.createElement('div');wrap.className='mixerControl'+(masterStrip?' masterStrip':'');
+  const top=document.createElement('div');top.className='controlTop';const lab=document.createElement('span');lab.className='label';lab.textContent=c.label;
+  const right=document.createElement('span');const val=document.createElement('span');val.className='value';val.id='mv_'+id;val.textContent=fmt(mixerState[id],c);
+  right.appendChild(val);right.append(' ',makeLockButton('m',id));top.append(lab,right);
+  const input=document.createElement('input');input.type='range';input.min=c.min;input.max=c.max;input.step=c.step;input.value=mixerState[id];input.id='mp_'+id;
+  const setValue=v=>{mixerState[id]=snapConfigValue(v,c);input.value=mixerState[id];val.textContent=fmt(mixerState[id],c);if(mixerMorphState)delete mixerMorphState.targets[id];applyGlobals()};
+  input.oninput=()=>setValue(clamp(Number(input.value),mixerRandomRanges[id].min,mixerRandomRanges[id].max));
+  const meter=document.createElement('div');meter.className='mixerMeter';const bar=document.createElement('span');bar.id='mm_'+id;meter.appendChild(bar);
+  wrap.append(top,makeRandomRangeBar('m',id,c,mixerRandomRanges,input,()=>mixerState[id],setValue),meter);return wrap
+}
 const mixerEl=$('#mixerControls');['master','sampleRhythm','kick','snare','hat','perc'].forEach((id,ix)=>mixerEl.appendChild(makeMixerControl(id,mixerConfigs[id],id==='master')));
 const e808El=$('#eightOhEightControls');['e808mix','e808kick','e808snare','e808hat','e808perc','e808bass','bassAttack','bassRelease','bassTone','bassGap'].forEach((id,ix)=>e808El.appendChild(makeMixerControl(id,mixerConfigs[id],id==='e808mix')));
+
 function syncMixerControl(id){const c=mixerConfigs[id],el=$('#mp_'+id),v=$('#mv_'+id);if(el)el.value=mixerState[id];if(v)v.textContent=fmt(mixerState[id],c)}
 function syncRhythmControl(id){const c=rhythmConfigs[id],el=$('#rp_'+id),v=$('#rv_'+id);if(el)el.value=rhythmState[id];if(v)v.textContent=fmt(rhythmState[id],c)}
 function syncControl(id,target,config){const el=$('#p_'+id),v=$('#v_'+id);if(el)el.value=target[id];if(v)v.textContent=fmt(target[id],config)}
+
 function lockSetFor(scope){return scope
