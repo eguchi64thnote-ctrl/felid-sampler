@@ -49,3 +49,20 @@ function draw(){const w=canvas.clientWidth,h=canvas.clientHeight;cc.clearRect(0,
   const meterValues={master:running?mixerState.master:0,sampleRhythm:rhythmOn?mixerState.sampleRhythm*rhythmState.level:0,kick:rhythmOn?mixerState.kick*rhythmState.level:0,snare:rhythmOn?mixerState.snare*rhythmState.level:0,hat:rhythmOn?mixerState.hat*rhythmState.level:0,perc:rhythmOn?mixerState.perc*rhythmState.level:0,e808mix:rhythmOn?mixerState.e808mix*rhythmState.level:0,e808kick:rhythmOn?mixerState.e808mix*mixerState.e808kick*rhythmState.level:0,e808snare:rhythmOn?mixerState.e808mix*mixerState.e808snare*rhythmState.level:0,e808hat:rhythmOn?mixerState.e808mix*mixerState.e808hat*rhythmState.level:0,e808perc:rhythmOn?mixerState.e808mix*mixerState.e808perc*rhythmState.level:0};for(const [id,v] of Object.entries(meterValues)){const el=$('#mm_'+id);if(el)el.style.width=Math.min(100,Math.max(0,v*82+(running?rand()*8:0)))+'%'}
   requestAnimationFrame(draw)}draw();
 window.addEventListener('error',e=>{$('#status').textContent='ERROR — '+e.message;$('#liveDot').style.background='var(--danger)'});
+
+// ---------- iPhone column balancing ----------
+function balanceIPhoneColumns(){
+  const engine=$('#enginePanel'),right=$('#rightPanel'),random=$('#randomSection'),material=$('#materialSection');
+  if(!engine||!right||!random||!material)return;
+  const compact=window.matchMedia('(max-width:640px) and (orientation:portrait)').matches;
+  if(compact){
+    if(random.parentElement!==engine)engine.appendChild(random);
+    if(material.parentElement!==engine)engine.appendChild(material);
+  }else{
+    if(random.parentElement!==right)right.appendChild(random);
+    if(material.parentElement!==right)right.appendChild(material);
+  }
+}
+balanceIPhoneColumns();
+window.addEventListener('resize',balanceIPhoneColumns);
+window.addEventListener('orientationchange',()=>setTimeout(balanceIPhoneColumns,120));
