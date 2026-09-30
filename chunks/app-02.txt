@@ -9,13 +9,34 @@ function clearAllHolds(){locked.clear();rhythmLocked.clear();mixerLocked.clear()
 const GROUPS=new Map();
 const MATERIALS=new Map();
 const ORIGINAL_GROUP='g-magic-hour';
-GROUPS.set(ORIGINAL_GROUP,{id:ORIGINAL_GROUP,name:'FeLid Magic Hour',active:true,weight:1,builtin:true});
+const IN_GROUP='g-in';
+GROUPS.set(ORIGINAL_GROUP,{id:ORIGINAL_GROUP,name:'FeLid / Magic Hour',active:true,weight:1,builtin:true});
+GROUPS.set(IN_GROUP,{id:IN_GROUP,name:'FeLid / In',active:false,weight:1,builtin:true});
 const MAGIC_TITLES=["Karesansui in the air #2","Hello, World","Magic hour (disco)","Environmental Mood","Rotate Dub","Yuudachi Dub #2","Akirame Mo Kanzin","Harmonics Dub #2","Sense of Gradation"];
+const IN_TITLES=["S S T L","Entrance","SamplingTrip","0 93 mph","Recovery","Route 999","Focus","Past","HyperTeleport","Continue"];
 for(let t=1;t<=MAGIC_TITLES.length;t++){
-  const id='builtin-t'+t;
+  const id='builtin-mh-'+t;
   MATERIALS.set(id,{id,name:MAGIC_TITLES[t-1],groupId:ORIGINAL_GROUP,enabled:(t===1||t===6),builtin:true,sampleIndices:[]});
 }
-SAMPLE_DATA.forEach((m,i)=>{m.materialId='builtin-t'+m.track;m.groupId=ORIGINAL_GROUP;m.sourceName=m.title||MAGIC_TITLES[m.track-1];MATERIALS.get(m.materialId).sampleIndices.push(i)});
+for(let t=1;t<=IN_TITLES.length;t++){
+  const id='builtin-in-'+t;
+  MATERIALS.set(id,{id,name:IN_TITLES[t-1],groupId:IN_GROUP,enabled:true,builtin:true,sampleIndices:[]});
+}
+SAMPLE_DATA.forEach((m,i)=>{
+  if(m.album==='in'){
+    const n=m.track-9;
+    m.materialId='builtin-in-'+n;
+    m.groupId=IN_GROUP;
+    m.sourceName=m.title||IN_TITLES[n-1];
+  }else{
+    m.album='magic-hour';
+    m.materialId='builtin-mh-'+m.track;
+    m.groupId=ORIGINAL_GROUP;
+    m.sourceName=m.title||MAGIC_TITLES[m.track-1];
+  }
+  const mat=MATERIALS.get(m.materialId);
+  if(mat)mat.sampleIndices.push(i);
+});
 let userMaterialCounter=0,groupCounter=0;
 
 function safeGroupName(name){return String(name||'').trim().replace(/\s+/g,' ').slice(0,40)}
