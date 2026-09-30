@@ -65,3 +65,190 @@ function balanceIPhoneColumns(){
 balanceIPhoneColumns();
 window.addEventListener('resize',balanceIPhoneColumns);
 window.addEventListener('orientationchange',()=>setTimeout(balanceIPhoneColumns,120));
+
+
+// ---------- parameter memory snapshots ----------
+const SNAPSHOT_STORAGE_KEY='felid-generator-memory-v1';
+function clonePlain(v){return JSON.parse(JSON.stringify(v))}
+function loadSnapshotSlots(){
+  try{
+    const raw=localStorage.getItem(SNAPSHOT_STORAGE_KEY);
+    const parsed=raw?JSON.parse(raw):{};
+    return parsed&&typeof parsed==='object'?parsed:{};
+  }catch(e){return {}}
+}
+let snapshotSlots=loadSnapshotSlots();
+
+function captureSnapshot(){
+  return {
+    version:1,
+    savedAt:Date.now(),
+    state:{...state},
+    meta:{...meta},
+    rhythmState:{...rhythmState},
+    mixerState:{...mixerState},
+    randomRanges:clonePlain(randomRanges),
+    rhythmRandomRanges:clonePlain(rhythmRandomRanges),
+    mixerRandomRanges:clonePlain(mixerRandomRanges),
+    holds:{
+      ambient:[...locked],
+      rhythm:[...rhythmLocked],
+      mixer:[...mixerLocked]
+    },
+    randomWalk:!!evolving,
+    rhythm:{
+      on:!!rhythmOn,
+      grooveFocus,
+      groovePrimary,
+      grooveSecondary,
+      grooveBlendAmount,
+      divisionFocus,
+      currentDivision
+    },
+    groups:[...GROUPS.values()].map(g=>({id:g.id,active:!!g.active,weight:Number(g.weight)||1})),
+    materials:[...MATERIALS.values()].map(m=>({id:m.id,enabled:!!m.enabled,groupId:m.groupId}))
+  };
+}
+function persistSnapshotSlots(){
+  try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(snapshotSlots))}catch(e){}
+}
+function updateSnapshotButtons(){
+  document.querySelectorAll('.snapshotSlot').forEach(b=>{
+    const slot=b.dataset.slot,s=snapshotSlots[slot];
+    b.textContent=s?'RECALL '+slot:'SAVE '+slot;
+    b.classList.toggle('saved',!!s);
+    b.title=s
+      ?'Tap to recall MEMORY '+slot+'. Hold to overwrite it with the current state.'
+      :'Tap to save the current state to MEMORY '+slot+'.';
+  });
+}
+function flashSnapshotStatus(text){
+  const s=$('#status');if(!s)return;
+  s.textContent=text;
+  clearTimeout(flashSnapshotStatus._t);
+  flashSnapshotStatus._t=setTimeout(()=>{
+    s.textContent=running?(evolving?'GENERATING / RANDOM WALK':'GENERATING'):(evolving?'RANDOM WALK / press PLAY':(ctx?'STOPPED':'READY — press PLAY'));
+  },1100);
+}
+function saveSnapshot(slot){
+  snapshotSlots[String(slot)]=captureSnapshot();
+  persistSnapshotSlots();
+  updateSnapshotButtons();
+  flashSnapshotStatus('MEMORY '+slot+' SAVED');
+}
+function restoreObject(target,source,configsMap){
+  if(!source)return;
+  for(const [id,c] of Object.entries(configsMap)){
+    const v=Number(source[id]);
+    if(Number.isFinite(v))target[id]=clamp(v,c.min,c.max);
+  }
+}
+function restoreRanges(target,source,configsMap){
+  if(!source)return;
+  for(const [id,c] of Object.entries(configsMap)){
+    const r=source[id];if(!r)continue;
+    let lo=Number(r.min),hi=Number(r.max);
+    if(!Number.isFinite(lo)||!Number.isFinite(hi))continue;
+    lo=clamp(lo,c.min,c.max);hi=clamp(hi,c.min,c.max);
+    if(hi<lo)[lo,hi]=[hi,lo];
+    target[id]={min:lo,max:hi};
+  }
+}
+function restoreHoldSet(set,values,valid){
+  set.clear();
+  for(const id of (values||[]))if(valid[id])set.add(id);
+}
+function restoreSnapshot(slot){
+  const s=snapshotSlots[String(slot)];if(!s)return;
+  morphState=null;rhythmMorphState=null;mixerMorphState=null;
+
+  restoreObject(state,s.state,configs);
+  restoreObject(meta,s.meta,metaConfigs);
+  restoreObject(rhythmState,s.rhythmState,rhythmConfigs);
+  restoreObject(mixerState,s.mixerState,mixerConfigs);
+  restoreRanges(randomRanges,s.randomRanges,configs);
+  restoreRanges(rhythmRandomRanges,s.rhythmRandomRanges,rhythmConfigs);
+  restoreRanges(mixerRandomRanges,s.mixerRandomRanges,mixerConfigs);
+
+  restoreHoldSet(locked,s.holds?.ambient,configs);
+  restoreHoldSet(rhythmLocked,s.holds?.rhythm,rhythmConfigs);
+  restoreHoldSet(mixerLocked,s.holds?.mixer,mixerConfigs);
+
+  for(const gState of (s.groups||[])){
+    const g=GROUPS.get(gState.id);if(!g)continue;
+    g.active=!!gState.active;
+    if(Number.isFinite(Number(gState.weight)))g.weight=clamp(Number(gState.weight),.05,2);
+  }
+  for(const mState of (s.materials||[])){
+    const m=MATERIALS.get(mState.id);if(!m)continue;
+    m.enabled=!!mState.enabled;
+    if(!m.builtin&&mState.groupId&&GROUPS.has(mState.groupId))m.groupId=mState.groupId;
+  }
+
+  const rs=s.rhythm||{};
+  if(rs.grooveFocus==='auto'||GROOVES[rs.grooveFocus])grooveFocus=rs.grooveFocus;
+  if(GROOVES[rs.groovePrimary])groovePrimary=rs.groovePrimary;
+  if(GROOVES[rs.grooveSecondary])grooveSecondary=rs.grooveSecondary;
+  if(Number.isFinite(Number(rs.grooveBlendAmount)))grooveBlendAmount=clamp(Number(rs.grooveBlendAmount),0,1);
+  if(rs.divisionFocus==='auto'||DIVISION_OPTIONS.includes(Number(rs.divisionFocus)))divisionFocus=rs.divisionFocus;
+  if(DIVISION_OPTIONS.includes(Number(rs.currentDivision)))currentDivision=Number(rs.currentDivision);
+  rhythmOn=!!rs.on;
+
+  for(const id of Object.keys(configs))syncControl(id,state,configs[id]);
+  for(const id of Object.keys(metaConfigs))syncControl(id,meta,metaConfigs[id]);
+  for(const id of Object.keys(rhythmConfigs))syncRhythmControl(id);
+  for(const id of Object.keys(mixerConfigs))syncMixerControl(id);
+  syncAllRandomRangeEditors();
+  for(const id of Object.keys(configs))syncLockButton('a',id);
+  for(const id of Object.keys(rhythmConfigs))syncLockButton('r',id);
+  for(const id of Object.keys(mixerConfigs))syncLockButton('m',id);
+
+  updateGrooveButtons();
+  updateDivisionButtons();
+  updateDivisionReadout();
+  buildRhythmPattern(true);
+  updateGrooveReadout();
+  $('#rhythmToggle').textContent=rhythmOn?'RHYTHM ON':'RHYTHM OFF';
+  $('#rhythmToggle').classList.toggle('on',rhythmOn);
+  $('#rhythmPulse').classList.toggle('on',rhythmOn);
+  renderGroups();
+  resetWalkAgents();
+  setContinuousRandom(s.randomWalk!==false);
+  applyGlobals();
+  syncMobileDock();
+
+  document.querySelectorAll('.snapshotSlot').forEach(b=>b.classList.toggle('recalled',b.dataset.slot===String(slot)));
+  setTimeout(()=>document.querySelectorAll('.snapshotSlot').forEach(b=>b.classList.remove('recalled')),650);
+  flashSnapshotStatus('MEMORY '+slot+' RECALLED');
+}
+function bindSnapshotButtons(){
+  document.querySelectorAll('.snapshotSlot').forEach(b=>{
+    let timer=null,longFired=false;
+    const slot=b.dataset.slot;
+    b.addEventListener('pointerdown',e=>{
+      longFired=false;
+      if(snapshotSlots[slot]){
+        timer=setTimeout(()=>{longFired=true;saveSnapshot(slot);if(navigator.vibrate)navigator.vibrate(25)},650);
+      }
+    });
+    const finish=()=>{
+      if(timer){clearTimeout(timer);timer=null}
+      if(longFired){longFired=false;return}
+      if(snapshotSlots[slot])restoreSnapshot(slot);else saveSnapshot(slot);
+    };
+    b.addEventListener('pointerup',finish);
+    b.addEventListener('pointercancel',()=>{if(timer)clearTimeout(timer);timer=null});
+    b.addEventListener('pointerleave',()=>{if(timer)clearTimeout(timer);timer=null});
+    b.addEventListener('contextmenu',e=>e.preventDefault());
+    b.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' '){
+        e.preventDefault();
+        if(e.shiftKey)saveSnapshot(slot);
+        else if(snapshotSlots[slot])restoreSnapshot(slot);
+        else saveSnapshot(slot);
+      }
+    });
+  });
+  updateSnapshotButtons();
+}
+bindSnapshotButtons();
