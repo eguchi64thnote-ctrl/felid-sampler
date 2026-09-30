@@ -55,12 +55,11 @@ function balanceIPhoneColumns(){
   const engine=$('#enginePanel'),right=$('#rightPanel'),random=$('#randomSection'),material=$('#materialSection');
   if(!engine||!right||!random||!material)return;
   const compact=window.matchMedia('(max-width:640px) and (orientation:portrait)').matches;
+  if(material.parentElement!==engine)engine.appendChild(material);
   if(compact){
     if(random.parentElement!==engine)engine.appendChild(random);
-    if(material.parentElement!==engine)engine.appendChild(material);
   }else{
     if(random.parentElement!==right)right.appendChild(random);
-    if(material.parentElement!==right)right.appendChild(material);
   }
 }
 balanceIPhoneColumns();
