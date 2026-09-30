@@ -33,6 +33,15 @@
   <section class="panel" id="enginePanel">
     <div class="sectionTitle">Engine / sound / silence</div>
     <div class="controls" id="mainControls"></div>
+    <div id="materialSection"><div class="sectionTitle">Material library / groups</div>
+    <div class="uploadBox">
+      <div class="uploadRow"><input id="newGroupName" class="textInput" type="text" placeholder="NEW GROUP NAME"><button id="addGroup">ADD GROUP</button></div>
+      <div class="uploadRow"><select id="uploadGroup" class="selectInput"></select><label class="fileButton">UPLOAD AUDIO<input id="audioUpload" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.aac,.ogg,.flac" multiple></label></div>
+      <div class="uploadHint">Choose a target group, then upload one or more audio files. The built-in library contains FeLid / Magic Hour and FeLid / In. Added files stay in this browser session.</div>
+    </div>
+    <div class="groups" id="groups"></div>
+    <div class="sourceTools"><button id="allGroups">ALL GROUPS ON</button><button id="oneGroup">SOLO RANDOM GROUP</button></div>
+    <div class="managerNote">Playback first chooses an active group by its WEIGHT, then an enabled material inside that group. Uploaded files remain in this browser session; reloading the page clears them.</div></div>
   </section>
   <aside class="panel" id="rightPanel">
     <div class="sectionTitle">Rhythm engine / source cuts</div>
@@ -69,15 +78,6 @@
       <div class="metaControls" id="metaControls"></div>
       <div class="randomHint"><strong>RANDOM WALK ON</strong> continuously moves every sound parameter at the same time — ENGINE / SOUND / SILENCE, RHYTHM ENGINE, MIXER, and 808 SYNTH LAYER. Each control has its own independent direction and speed and keeps drifting inside its own RANDOM RANGE. Press WALK beside any parameter to switch it to HOLD; that parameter freezes immediately while every other unlocked parameter keeps moving. WALK SPEED controls continuous movement.</div>
     </div></div>
-    <div id="materialSection"><div class="sectionTitle">Material library / groups</div>
-    <div class="uploadBox">
-      <div class="uploadRow"><input id="newGroupName" class="textInput" type="text" placeholder="NEW GROUP NAME"><button id="addGroup">ADD GROUP</button></div>
-      <div class="uploadRow"><select id="uploadGroup" class="selectInput"></select><label class="fileButton">UPLOAD AUDIO<input id="audioUpload" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.aac,.ogg,.flac" multiple></label></div>
-      <div class="uploadHint">Choose a target group, then upload one or more audio files. The built-in library contains FeLid / Magic Hour and FeLid / In. Added files stay in this browser session.</div>
-    </div>
-    <div class="groups" id="groups"></div>
-    <div class="sourceTools"><button id="allGroups">ALL GROUPS ON</button><button id="oneGroup">SOLO RANDOM GROUP</button></div>
-    <div class="managerNote">Playback first chooses an active group by its WEIGHT, then an enabled material inside that group. Uploaded files remain in this browser session; reloading the page clears them.</div></div>
   </aside>
 </div>
 <div class="foot">
