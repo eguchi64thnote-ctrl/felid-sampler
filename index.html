@@ -30,11 +30,11 @@
 </div>
 <div class="visual"><canvas id="scope"></canvas><div class="visualInfo">LIVE SPECTRUM / MA / GENERATION STATE</div></div>
 <div class="grid">
-  <section class="panel">
+  <section class="panel" id="enginePanel">
     <div class="sectionTitle">Engine / sound / silence</div>
     <div class="controls" id="mainControls"></div>
   </section>
-  <aside class="panel">
+  <aside class="panel" id="rightPanel">
     <div class="sectionTitle">Rhythm engine / Magic Hour cuts</div>
     <div class="rhythmBox">
       <div class="rhythmActions"><button id="rhythmToggle">RHYTHM OFF</button><button id="rhythmRandom">RHYTHM RANDOM ↝</button><button id="newGroove">NEW GROOVE</button></div>
@@ -62,14 +62,14 @@
         <div class="mixerHint">808 MIX at 0% = pure Magic Hour cuts. Raise it slightly to reveal the pulse without replacing the source character. Individual 808 role faders let you add only the amount of definition you need.</div>
       </div>
     </div>
-    <div class="sectionTitle">Random movement</div>
+    <div id="randomSection"><div class="sectionTitle">Random movement</div>
     <div class="randomBox">
       <div class="randomActions"><button id="continuousRandom" class="on">RANDOM WALK ON</button></div>
       <div class="randomSubActions"><button id="resetRandomRanges" style="grid-column:1/-1">RESET ALL RANDOM RANGES</button></div>
       <div class="metaControls" id="metaControls"></div>
       <div class="randomHint"><strong>RANDOM WALK ON</strong> continuously moves every sound parameter at the same time — ENGINE / SOUND / SILENCE, RHYTHM ENGINE, MIXER, and 808 SYNTH LAYER. Each control has its own independent direction and speed and keeps drifting inside its own RANDOM RANGE. Press WALK beside any parameter to switch it to HOLD; that parameter freezes immediately while every other unlocked parameter keeps moving. WALK SPEED controls continuous movement.</div>
-    </div>
-    <div class="sectionTitle">Material library / groups</div>
+    </div></div>
+    <div id="materialSection"><div class="sectionTitle">Material library / groups</div>
     <div class="uploadBox">
       <div class="uploadRow"><input id="newGroupName" class="textInput" type="text" placeholder="NEW GROUP NAME"><button id="addGroup">ADD GROUP</button></div>
       <div class="uploadRow"><select id="uploadGroup" class="selectInput"></select><label class="fileButton">UPLOAD AUDIO<input id="audioUpload" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.aac,.ogg,.flac" multiple></label></div>
@@ -77,7 +77,7 @@
     </div>
     <div class="groups" id="groups"></div>
     <div class="sourceTools"><button id="allGroups">ALL GROUPS ON</button><button id="oneGroup">SOLO RANDOM GROUP</button></div>
-    <div class="managerNote">Playback first chooses an active group by its WEIGHT, then an enabled material inside that group. Uploaded files remain in this browser session; reloading the page clears them.</div>
+    <div class="managerNote">Playback first chooses an active group by its WEIGHT, then an enabled material inside that group. Uploaded files remain in this browser session; reloading the page clears them.</div></div>
   </aside>
 </div>
 <div class="foot">
