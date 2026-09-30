@@ -83,3 +83,161 @@ button{font-size:12px}
 
 
 .titleSub{font-size:.62em;font-weight:500;letter-spacing:.08em;color:var(--muted)}
+
+
+/* iPhone compact two-column layout */
+@media(max-width:640px) and (orientation:portrait){
+  .grid{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    align-items:start;
+  }
+  .panel{
+    min-width:0;
+    padding:12px 8px 16px;
+    border-bottom:0;
+  }
+  .panel:first-child{
+    border-right:1px solid var(--line);
+  }
+  .panel:last-child{
+    border-right:0;
+  }
+  .sectionTitle{
+    font-size:8px;
+    line-height:1.35;
+    letter-spacing:.1em;
+    margin-bottom:9px;
+  }
+  .controls,
+  .rhythmControls,
+  .mixerGrid{
+    grid-template-columns:1fr;
+    gap:9px;
+  }
+  .controlTop{
+    gap:4px;
+  }
+  .label,.value{
+    font-size:8px;
+  }
+  .value{
+    min-width:44px;
+  }
+  .lock{
+    min-width:36px;
+    min-height:24px;
+    padding:3px 4px;
+    font-size:7px;
+  }
+  input[type=range]{
+    height:30px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    width:18px;
+    height:18px;
+    margin-top:-7.5px;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:18px;
+    height:18px;
+  }
+  .rhythmBox,.mixerBox,.randomBox,.uploadBox{
+    padding:8px;
+    margin-bottom:12px;
+  }
+  .rhythmActions{
+    grid-template-columns:1fr;
+    gap:5px;
+  }
+  .rhythmActions button:last-child{
+    grid-column:auto;
+  }
+  .rhythmActions button,
+  .randomActions button{
+    min-height:34px;
+    padding:6px 4px;
+    font-size:7px;
+  }
+  .grooveGrid,.divisionGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:4px;
+  }
+  .grooveGrid button,.divisionGrid button{
+    min-height:32px;
+    padding:5px 2px;
+    font-size:7px;
+  }
+  .divisionLabel{
+    font-size:6px;
+    line-height:1.35;
+  }
+  .rhythmReadout,.mixerHint,.randomHint,.managerNote,.uploadHint{
+    font-size:7px;
+    line-height:1.45;
+  }
+  .mixerGroupTitle{
+    font-size:7px;
+  }
+  .mixerGroupTitle strong{
+    font-size:8px;
+  }
+  .mixerControl{
+    padding:6px;
+  }
+  .randomSubActions{
+    grid-template-columns:1fr;
+  }
+  .randomSubActions button{
+    font-size:7px;
+    padding:6px 4px;
+  }
+  .randomRange summary{
+    font-size:7px;
+  }
+  .randomRangeLine{
+    grid-template-columns:22px 1fr;
+    font-size:7px;
+  }
+  .uploadRow{
+    grid-template-columns:1fr;
+    gap:5px;
+  }
+  .fileButton,.textInput,.selectInput,.uploadRow button{
+    min-height:36px;
+    font-size:8px;
+    padding:6px;
+  }
+  .groupHead{
+    grid-template-columns:1fr;
+    gap:4px;
+    padding:6px;
+  }
+  .groupToggle,.groupSolo{
+    width:100%;
+  }
+  .groupWeight{
+    grid-template-columns:1fr;
+    gap:4px;
+    padding:5px 6px;
+  }
+  .materialRow{
+    grid-template-columns:1fr;
+    gap:4px;
+    padding:5px 6px;
+  }
+  .matMove{
+    grid-column:auto;
+  }
+  .sourceTools{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+  .sourceTools button{
+    width:100%;
+    font-size:7px;
+  }
+  .foot{
+    clear:both;
+  }
+}
