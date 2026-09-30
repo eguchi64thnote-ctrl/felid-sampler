@@ -5,55 +5,5 @@ function buildRhythmPattern(force=false){const evolveNow=force||rhythmBar%Math.m
 function newGroove(force=true){buildRhythmPattern(force);rhythmStep=0;rhythmRoleState.kick.sample=rhythmRoleState.snare.sample=rhythmRoleState.hat.sample=rhythmRoleState.perc.sample=-1}
 function roleTimingOffset(role,step,stepDur){let x=0;const pulse=step%currentDivision;if(pulse%2===1)x+=rhythmState.swing*stepDur*.52;if(currentDivision===3&&pulse===1)x+=rhythmState.swing*stepDur*.18;if(groovePrimary==='jazz'&&pulse%2===1)x+=rhythmState.swing*stepDur*.18;if((groovePrimary==='hiphop'||groovePrimary==='rnb')&&role==='snare')x+=stepDur*.04;x+=(rand()-.5)*stepDur*rhythmState.humanize*.45;return x}
 function schedule808Hit(role,when,velocity=1){if(!ctx||mixerState.e808mix<.001)return;const t=Math.max(when,ctx.currentTime+.006),base=Math.max(.0001,rhythmState.level*velocity);if(role==='kick'){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.setValueAtTime(76+rand()*12,t);o.frequency.exponentialRampToValueAtTime(43+rand()*7,t+.16);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.36*base,t+.004);g.gain.exponentialRampToValueAtTime(.0001,t+.34+rand()*.12);o.connect(g).connect(e808RoleBuses.kick);o.start(t);o.stop(t+.52)}else if(role==='snare'){const n=ctx.createBufferSource(),hp=ctx.createBiquadFilter(),g=ctx.createGain(),o=ctx.createOscillator(),og=ctx.createGain();n.buffer=noiseBuffer;hp.type='bandpass';hp.frequency.value=1500+rand()*900;hp.Q.value=.65;n.connect(hp).connect(g).connect(e808RoleBuses.snare);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.13*base,t+.003);g.gain.exponentialRampToValueAtTime(.0001,t+.16);o.type='triangle';o.frequency.value=165+rand()*25;o.connect(og).connect(e808RoleBuses.snare);og.gain.setValueAtTime(.0001,t);og.gain.exponentialRampToValueAtTime(.055*base,t+.003);og.gain.exponentialRampToValueAtTime(.0001,t+.11);n.start(t,rand()*.7,.2);n.stop(t+.21);o.start(t);o.stop(t+.13)}else if(role==='hat'){const n=ctx.createBufferSource(),hp=ctx.createBiquadFilter(),g=ctx.createGain();n.buffer=noiseBuffer;hp.type='highpass';hp.frequency.value=6500+rand()*2600;n.connect(hp).connect(g).connect(e808RoleBuses.hat);const d=.045+rand()*.055;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.065*base,t+.0015);g.gain.exponentialRampToValueAtTime(.0001,t+d);n.start(t,rand()*.8,d+.02);n.stop(t+d+.03)}else{const o=ctx.createOscillator(),g=ctx.createGain();o.type=rand()<.5?'triangle':'sine';o.frequency.value=300+rand()*420;o.frequency.exponentialRampToValueAtTime(180+rand()*220,t+.1);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.07*base,t+.002);g.gain.exponentialRampToValueAtTime(.0001,t+.12);o.connect(g).connect(e808RoleBuses.perc);o.start(t);o.stop(t+.14)}}
-function scheduleBassGap(when,stepDur,velocity=1){
-  if(!ctx||!rhythmOn||mixerState.e808mix<.001||mixerState.e808bass<.001)return;
-  const t=Math.max(when,ctx.currentTime+.006);
-  const atk=clamp(mixerState.bassAttack,.002,.25),rel=clamp(mixerState.bassRelease,.04,2.2),tone=clamp(mixerState.bassTone,0,1);
-  const baseFreq=38+tone*24+(rand()-.5)*3.5;
-  const o1=ctx.createOscillator(),o2=ctx.createOscillator(),lp=ctx.createBiquadFilter(),g=ctx.createGain(),g2=ctx.createGain();
-  o1.type='sine';o2.type=tone>.56?'triangle':'sine';
-  o1.frequency.setValueAtTime(baseFreq,t);o2.frequency.setValueAtTime(baseFreq*2,t);
-  lp.type='lowpass';lp.frequency.setValueAtTime(90+tone*260,t);lp.Q.value=.55+tone*1.4;
-  const peak=.12*Math.max(.15,rhythmState.level)*velocity;
-  g.gain.setValueAtTime(.0001,t);
-  g.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+atk);
-  g.gain.exponentialRampToValueAtTime(.0001,t+atk+rel);
-  g2.gain.value=.03+.08*tone;
-  o1.connect(g);o2.connect(g2).connect(g);g.connect(lp).connect(e808RoleBuses.bass);
-  o1.start(t);o2.start(t);o1.stop(t+atk+rel+.06);o2.stop(t+atk+rel+.06);
-}
 function scheduleRhythmHit(role,when,velocity=1){const i=freshMagicSample(role);if(i<0)return;const b=buffers[i],m=SAMPLE_DATA[i];const base=rhythmState.slice;const mul=role==='kick'?1.45:role==='snare'?1.05:role==='hat' ? .48 : 1.25;let outDur=clamp(base*mul*(.65+rand()*.75),.018,role==='hat' ? 2.4 : 7.5);let semis=(rand()*2-1)*rhythmState.pitch;if(role==='kick')semis-=2+rand()*4;if(role==='hat')semis+=rand()*4;semis+=(rand()-.5)*.018;const rate=Math.pow(2,semis/12),bufDur=Math.min(outDur*rate,b.duration-.01);if(bufDur<=.012)return;const off=chooseRhythmOffset(i,role,bufDur);const src=ctx.createBufferSource();src.buffer=b;src.playbackRate.value=rate;const f=ctx.createBiquadFilter();if(role==='kick'){f.type='lowpass';f.frequency.value=clamp(280+rand()*720,150,1200);f.Q.value=.7+rand()*1.3}else if(role==='hat'){f.type='highpass';f.frequency.value=2600+rand()*5200;f.Q.value=.25+rand()*.7}else if(role==='snare'){f.type='bandpass';f.frequency.value=850+rand()*3200;f.Q.value=.45+rand()*1.1}else{f.type=rand()<.5?'bandpass':'highpass';f.frequency.value=420+rand()*5200;f.Q.value=.35+rand()*1.2}const p=ctx.createStereoPanner();p.pan.value=role==='kick'?0:clamp((rand()*2-1)*(.18+.72*state.stereo),-1,1);const g=ctx.createGain();const norm=clamp(.065/Math.max(.018,m.rms||.06),.38,1.7);const roleAmp={kick:.45,snare:.35,hat:.22,perc:.27}[role];const amp=Math.max(.0002,rhythmState.level*roleAmp*norm*velocity);src.connect(f).connect(p).connect(g);g.connect(rhythmRoleBuses[role]);src.onended=()=>{try{src.disconnect();f.disconnect();p.disconnect();g.disconnect()}catch(e){}};const t=Math.max(when,ctx.currentTime+.006),atk=role==='hat' ? .0015 : .003,rel=Math.max(.012,outDur*(role==='kick' ? .72 : .88));g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(amp,t+atk);g.gain.exponentialRampToValueAtTime(.0001,t+rel);src.start(t,off,bufDur);src.stop(t+outDur+.025);schedule808Hit(role,t,velocity);eventId++;$('#eventCount').textContent=eventId.toLocaleString();flashSource(i)}
-function rhythmScheduler(now,horizon){
-  if(!rhythmOn)return;
-  if(!rhythmPattern)buildRhythmPattern(true);
-  if(rhythmNextStep<now-.5)rhythmNextStep=now+.02;
-  let guard=0;
-  while(rhythmNextStep<horizon&&guard++<96){
-    if(rhythmStep===0){
-      if(rhythmBar>0)buildRhythmPattern(false);
-      rhythmBreakBar=rand()<rhythmState.breaks*.22;
-    }
-    const totalSteps=currentDivision*4,stepDur=(60/state.tempo)/currentDivision,step=rhythmStep,beatDrop=rand()<rhythmState.breaks*.06;
-    let kickOrPercHit=false;
-    const roles=['kick','snare','hat','perc'];
-    if(!rhythmBreakBar&&!beatDrop){
-      for(const role of roles){
-        let p=(rhythmPattern[role]&&rhythmPattern[role][step])||0;
-        if(rand()<rhythmState.breaks*.08)p*=.35;
-        if(rand()<p){
-          const vel=clamp(.65+rand()*.45+(step%currentDivision===0?.08:0),.45,1.18);
-          scheduleRhythmHit(role,rhythmNextStep+roleTimingOffset(role,step,stepDur),vel);
-          if(role==='kick'||role==='perc')kickOrPercHit=true;
-        }
-      }
-      if(!kickOrPercHit&&rand()<mixerState.bassGap){
-        const bassVel=clamp(.45+rand()*.28,.35,.78);
-        const bassWhen=rhythmNextStep+stepDur*(.10+rand()*.34);
-        scheduleBassGap(bassWhen,stepDur,bassVel);
-      }
-    }
-    rhythmStep=(rhythmStep+1)%totalSteps;
-    if(rhythmStep===0)rhythmBar++;
-    rhythmNextStep+=stepDur;
-  }
-}
+function rhythmScheduler(now,horizon){if(!rhythmOn)return;if(!rhythmPattern)buildRhythmPattern(true);if(rhythmNextStep<now-.5)rhythmNextStep=now+.02;let guard=0;while(rhythmNextStep<horizon&&guard++<96){if(rhythmStep===0){if(rhythmBar>0)buildRhythmPattern(false);rhythmBreakBar=rand()<rhythmState.breaks*.22}const totalSteps=currentDivision*4,stepDur=(60/state.tempo)/currentDivision,step=rhythmStep,beatDrop=rand()<rhythmState.breaks*.06;const roles=['kick','snare','hat','perc'];if(!rhythmBreakBar&&!beatDrop){for(const role of roles){let p=(rhythmPattern[role]&&rhythmPattern[role][step])||0;if(rand()<rhythmState.breaks*.08)p*=.35;if(rand()<p){const vel=clamp(.65+rand()*.45+
