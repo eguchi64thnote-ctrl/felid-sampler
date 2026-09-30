@@ -18,9 +18,7 @@
   <div><h1>“Karesansui in the air” Generator<br><span class="titleSub">- Magic Hour Ver. -</span></h1><div class="sub">ambient · experimental · dub · generative rhythm · mixer · synthetic 808 layer · silence as material / built from <em>Magic Hour</em></div></div>
   <div class="transport">
     <button id="play" class="primary">PLAY</button>
-    <button id="random">MOVE ALL TO RANDOM — ONCE</button>
     <button id="evolve">RANDOM WALK OFF</button>
-    <button id="reset">RESET</button>
   </div>
 </header>
 <div class="statusrow">
@@ -68,10 +66,10 @@
     </div>
     <div class="sectionTitle">Random movement</div>
     <div class="randomBox">
-      <div class="randomActions"><button id="random2">MOVE ALL TO RANDOM — ONCE</button><button id="continuousRandom">RANDOM WALK OFF</button></div>
+      <div class="randomActions"><button id="continuousRandom">RANDOM WALK OFF</button></div>
       <div class="randomSubActions"><button id="resetRandomRanges" style="grid-column:1/-1">RESET ALL RANDOM RANGES</button></div>
       <div class="metaControls" id="metaControls"></div>
-      <div class="randomHint"><strong>RANDOM WALK ON</strong> continuously moves every sound parameter at the same time — ENGINE / SOUND / SILENCE, RHYTHM ENGINE, MIXER, and 808 SYNTH LAYER. There is no wait between destinations: each control has its own independent direction and speed and keeps drifting inside its own RANDOM RANGE. Press the WALK button beside any parameter to switch it to HOLD; that parameter freezes immediately while every other unlocked parameter keeps moving. MORPH TIME / RANDOM DEPTH apply to the one-shot move; WALK SPEED controls continuous movement.</div>
+      <div class="randomHint"><strong>RANDOM WALK ON</strong> continuously moves every sound parameter at the same time — ENGINE / SOUND / SILENCE, RHYTHM ENGINE, MIXER, and 808 SYNTH LAYER. Each control has its own independent direction and speed and keeps drifting inside its own RANDOM RANGE. Press WALK beside any parameter to switch it to HOLD; that parameter freezes immediately while every other unlocked parameter keeps moving. WALK SPEED controls continuous movement.</div>
     </div>
     <div class="sectionTitle">Material library / groups</div>
     <div class="uploadBox">
@@ -85,8 +83,8 @@
   </aside>
 </div>
 <div class="foot">
-  MOVE ALL TO RANDOM performs one gradual move. RANDOM WALK continuously moves every sound parameter — ambient/silence, rhythm, mixer, and 808 — without stopping between destinations. Every sound parameter has its own editable RANDOM RANGE (MIN / MAX) and its own WALK/HOLD switch, so each control can wander forever inside a deliberately bounded musical territory or be frozen independently. TEMPO reaches 296 BPM and RHYTHM SLICE LENGTH reaches 6 seconds. RHYTHMIC DIVISION adds straight 16ths plus 3 / 5 / 7 / 9 / 11 tuplets, with an AUTO mode that can change division as the groove evolves. The mixer separates Magic Hour KICK / SNARE / HAT / PERC roles, with an optional synthesized 808 layer.<br>
-  <span class="kbd">SPACE</span> play/stop &nbsp; <span class="kbd">R</span> ambient random &nbsp; <span class="kbd">G</span> new groove &nbsp; Groups and individual materials can be enabled independently. Each generated event receives a unique source-position/micro-detune state to prevent exact event repetition during normal use.
+  RANDOM WALK continuously moves every sound parameter — ambient/silence, rhythm, mixer, and 808 — without stopping. Every sound parameter has its own editable RANDOM RANGE (MIN / MAX) and its own WALK/HOLD switch, so each control can wander forever inside a deliberately bounded musical territory or be frozen independently. TEMPO reaches 296 BPM and RHYTHM SLICE LENGTH reaches 6 seconds. RHYTHMIC DIVISION adds straight 16ths plus 3 / 5 / 7 / 9 / 11 tuplets, with an AUTO mode that can change division as the groove evolves. The mixer separates Magic Hour KICK / SNARE / HAT / PERC roles, with an optional synthesized 808 layer.<br>
+  <span class="kbd">SPACE</span> play/stop &nbsp; <span class="kbd">G</span> new groove &nbsp; Groups and individual materials can be enabled independently. Each generated event receives a unique source-position/micro-detune state to prevent exact event repetition during normal use.
 </div>
 </div>
 <div id="iosInstallHint" class="iosInstallHint"><strong>iPhone:</strong> Safariの共有ボタン →「ホーム画面に追加」でフルスクリーンのアプリとして使えます。<button id="closeInstallHint" aria-label="close">×</button></div>
@@ -94,7 +92,6 @@
   <button id="mobilePlay" class="mobilePrimary">PLAY</button>
   <button id="mobileWalk">RANDOM<br>WALK</button>
   <button id="mobileRhythm">RHYTHM<br>OFF</button>
-  <button id="mobileRandom">RANDOM<br>ONCE</button>
 </nav>
 <script src="app.js" defer></script>
 </body></html>
