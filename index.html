@@ -30,7 +30,16 @@
   <span>LAST SOURCE <span id="lastSource" class="metric">—</span></span>
   <span><span id="rhythmPulse" class="rhythmPulse"></span>RHYTHM <span id="grooveStatus" class="metric">OFF</span></span>
 </div>
-<div class="visual"><canvas id="scope"></canvas><div class="visualInfo">LIVE SPECTRUM / MA / GENERATION STATE</div></div>
+<div class="visual"><canvas id="scope"></canvas><div class="visualInfo">GENERATIVE VISUAL / AUDIO REACTIVE</div></div>
+<div class="visualDeck">
+  <div class="visualModeRow">
+    <button class="visualMode active" data-visual-mode="karesansui">KARESANSUI</button>
+    <button class="visualMode" data-visual-mode="trail">TRAIL</button>
+    <button class="visualMode" data-visual-mode="particle">PARTICLE</button>
+    <button id="visualWalk">VISUAL RANDOM WALK OFF</button>
+  </div>
+  <div class="visualControls" id="visualControls"></div>
+</div>
 <div class="grid">
   <section class="panel">
     <div class="sectionTitle">Engine / sound / silence</div>
