@@ -1,0 +1,74 @@
+'use strict';
+const SAMPLE_DATA = [{"track":1,"cell":1,"title":"Karesansui in the air #2","start":0,"rms":0.07,"centroid":0,"flatness":0,"data":null,"url":"samples/track01.mp3"},{"track":2,"cell":1,"title":"Hello, World","start":0,"rms":0.07,"centroid":0,"flatness":0,"data":null,"url":"samples/track02.mp3"},{"track":3,"cell":1,"title":"Magic hour (disco)","start":0,"rms":0.07,"centroid":0,"flatness":0,"data":null,"url":"samples/track03.mp3"},{"track":4,"cell":1,"title":"Environmental Mood","start":0,"rms":0.07,"centroid":0,"flatness":0,"data":null,"url":"samples/track04.mp3"},{"track":5,"cell":1,"title":"Rotate Dub","start":0,"rms":0.07,"centroid":0,"flatness":0,"data":null,"url":"samples/track05.mp3"},{"track":6,"cell":1,"title":"Yuudachi Dub #2","start":0,"rms":0.07,"centroid":0,"flatness":0,"data":null,"url":"samples/track06.mp3"},{"track":7,"cell":1,"title":"Akirame Mo Kanzin","start":0,"rms":0.07,"centroid":0,"flatness":0,"data":null,"url":"samples/track07.mp3"},{"track":8,"cell":1,"title":"Harmonics Dub #2","start":0,"rms":0.07,"centroid":0,"flatness":0,"data":null,"url":"samples/track08.mp3"},{"track":9,"cell":1,"title":"Sense of Gradation","start":0,"rms":0.07,"centroid":0,"flatness":0,"data":null,"url":"samples/track09.mp3"}]
+const BUILTIN_TOTAL = SAMPLE_DATA.length;
+let TOTAL = SAMPLE_DATA.length;
+
+// ---------- utilities ----------
+const $ = s => document.querySelector(s);
+function rand(){const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]/4294967296}
+function gauss(){let u=0,v=0;while(!u)u=rand();while(!v)v=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const fract=x=>x-Math.floor(x);
+function smooth(t){return t*t*(3-2*t)}
+function fmt(v,c){if(c.unit==='Hz') return v>=1000?(v/1000).toFixed(v>=10000?1:2)+'kHz':Math.round(v)+'Hz'; if(c.unit==='s')return v<1?Math.round(v*1000)+'ms':v.toFixed(1)+'s'; if(c.unit==='st')return '±'+v.toFixed(1)+'st'; if(c.unit==='%')return Math.round(v*100)+'%'; if(c.unit==='BPM')return Math.round(v)+' BPM'; if(c.unit==='voices')return Math.round(v)+' voices'; if(c.unit==='bars')return Math.round(v)+' bars'; return v.toFixed(c.step<.1?2:1)}
+function toNorm(v,c){if(c.scale==='log')return Math.log(v/c.min)/Math.log(c.max/c.min);return (v-c.min)/(c.max-c.min)}
+function fromNorm(n,c){n=clamp(n,0,1);if(c.scale==='log')return c.min*Math.pow(c.max/c.min,n);return c.min+(c.max-c.min)*n}
+
+const configs = {
+  tempo:{label:'TEMPO / PULSE',min:28,max:296,step:1,def:72,unit:'BPM',rmin:42,rmax:236},
+  density:{label:'EVENT DENSITY',min:.04,max:2.5,step:.01,def:.34,unit:'',scale:'log',rmin:.07,rmax:1.45},
+  grain:{label:'GESTURE LENGTH',min:.10,max:13,step:.01,def:3.4,unit:'s',scale:'log',rmin:.25,rmax:10.5},
+  voices:{label:'VOICES',min:1,max:4,step:1,def:2,unit:'voices',rmin:1,rmax:4},
+  ma:{label:'MA / SILENCE',min:0,max:.95,step:.01,def:.52,unit:'%',rmin:.08,rmax:.9},
+  rest:{label:'MAX SILENCE',min:.4,max:20,step:.1,def:7.5,unit:'s',scale:'log',rmin:1.2,rmax:17},
+  fade:{label:'FADE / BREATH',min:.01,max:3.5,step:.01,def:.72,unit:'s',scale:'log',rmin:.08,rmax:2.6},
+  continuity:{label:'CONTINUITY',min:0,max:1,step:.01,def:.84,unit:'%',rmin:.32,rmax:.97},
+  drift:{label:'DRIFT',min:0,max:1,step:.01,def:.22,unit:'%',rmin:.04,rmax:.82},
+  pitch:{label:'PITCH RANGE',min:0,max:12,step:.1,def:1.5,unit:'st',rmin:0,rmax:8},
+  swing:{label:'TIME ASYMMETRY',min:0,max:.5,step:.01,def:.08,unit:'%',rmin:0,rmax:.4},
+  cutoff:{label:'LOWPASS',min:180,max:19000,step:1,def:9800,unit:'Hz',scale:'log',rmin:500,rmax:18000},
+  resonance:{label:'RESONANCE',min:.1,max:14,step:.1,def:.6,unit:'',rmin:.1,rmax:5},
+  delay:{label:'DELAY SEND',min:0,max:.8,step:.01,def:.22,unit:'%',rmin:0,rmax:.58},
+  feedback:{label:'DELAY FEEDBACK',min:0,max:.78,step:.01,def:.34,unit:'%',rmin:.05,rmax:.68},
+  reverb:{label:'REVERB',min:0,max:.9,step:.01,def:.4,unit:'%',rmin:.08,rmax:.78},
+  stereo:{label:'STEREO SPREAD',min:0,max:1,step:.01,def:.74,unit:'%',rmin:.18,rmax:1},
+  level:{label:'AMBIENT LEVEL',min:0,max:1,step:.01,def:.64,unit:'%',rmin:0,rmax:.9}
+};
+const metaConfigs={
+  morph:{label:'MORPH TIME',min:1,max:60,step:1,def:14,unit:'s'},
+  depth:{label:'RANDOM DEPTH',min:.1,max:1,step:.01,def:.82,unit:'%'},
+  walkSpeed:{label:'WALK SPEED',min:.15,max:3,step:.01,def:.8,unit:'x'}
+};
+const rhythmConfigs={
+  level:{label:'RHYTHM LEVEL',min:0,max:1,step:.01,def:.42,unit:'%',rmin:.15,rmax:.78},
+  density:{label:'HIT DENSITY',min:.18,max:1.25,step:.01,def:.68,unit:'',rmin:.3,rmax:1.08},
+  complexity:{label:'COMPLEXITY',min:0,max:1,step:.01,def:.46,unit:'%',rmin:.12,rmax:.92},
+  mutation:{label:'PATTERN MUTATION',min:0,max:1,step:.01,def:.28,unit:'%',rmin:.08,rmax:.82},
+  grooveDrift:{label:'GROOVE DRIFT',min:0,max:1,step:.01,def:.34,unit:'%',rmin:.04,rmax:.95},
+  grooveMix:{label:'CURRENT GROOVE MIX',min:0,max:1,step:.01,def:.34,unit:'%',rmin:0,rmax:1},
+  swing:{label:'RHYTHM SWING',min:0,max:.68,step:.01,def:.18,unit:'%',rmin:0,rmax:.58},
+  humanize:{label:'HUMANIZE',min:0,max:.45,step:.01,def:.11,unit:'%',rmin:.01,rmax:.34},
+  slice:{label:'SLICE LENGTH',min:.025,max:6,step:.005,def:.16,unit:'s',scale:'log',rmin:.035,rmax:3.6},
+  pitch:{label:'SLICE PITCH',min:0,max:18,step:.1,def:4.5,unit:'st',rmin:.5,rmax:13},
+  space:{label:'RHYTHM SPACE',min:0,max:.85,step:.01,def:.22,unit:'%',rmin:.03,rmax:.62},
+  breaks:{label:'RHYTHM MA',min:0,max:.9,step:.01,def:.16,unit:'%',rmin:0,rmax:.68},
+  evolveBars:{label:'EVOLVE EVERY',min:1,max:16,step:1,def:2,unit:'bars',rmin:1,rmax:8}
+};
+const mixerConfigs={
+  master:{label:'MASTER',min:0,max:1,step:.01,def:.74,unit:'%',rmin:.46,rmax:.9},
+  sampleRhythm:{label:'MAGIC CUTS',min:0,max:1.25,step:.01,def:.82,unit:'%',rmin:.22,rmax:1.15},
+  kick:{label:'CUT KICK',min:0,max:1.25,step:.01,def:1.0,unit:'%',rmin:.28,rmax:1.2},
+  snare:{label:'CUT SNARE',min:0,max:1.25,step:.01,def:.82,unit:'%',rmin:.16,rmax:1.12},
+  hat:{label:'CUT HAT',min:0,max:1.25,step:.01,def:.68,unit:'%',rmin:.08,rmax:1.05},
+  perc:{label:'CUT PERC',min:0,max:1.25,step:.01,def:.72,unit:'%',rmin:.08,rmax:1.08},
+  e808mix:{label:'808 MIX',min:0,max:1,step:.01,def:.08,unit:'%',rmin:0,rmax:.28},
+  e808kick:{label:'808 KICK',min:0,max:1.25,step:.01,def:.92,unit:'%',rmin:.16,rmax:1.12},
+  e808snare:{label:'808 SNARE',min:0,max:1.25,step:.01,def:.42,unit:'%',rmin:.02,rmax:.72},
+  e808hat:{label:'808 HAT',min:0,max:1.25,step:.01,def:.28,unit:'%',rmin:0,rmax:.58},
+  e808perc:{label:'808 PERC',min:0,max:1.25,step:.01,def:.25,unit:'%',rmin:0,rmax:.58}
+};
+const state={}, meta={}, rhythmState={}, mixerState={}, locked=new Set(), rhythmLocked=new Set(), mixerLocked=new Set();
+const randomRanges={}, rhythmRandomRanges={}, mixerRandomRanges={};
+for(const [k,c] of Object.entries(configs)){state[k]=c.def;randomRanges[k]={min:c.rmin??c.min,max:c.rmax??c.max}}
+for(const [k,c] of Object.entries(metaConfigs)) meta[k]=c.def;
+for(const [k,c] of Object.entries(rhythmConfigs)){rhythmState[k]=c.def;rhythmRandomRanges[k]={min:c.rmin
