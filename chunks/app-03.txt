@@ -6,8 +6,8 @@ $('#oneGroup').onclick=()=>{const arr=[...GROUPS.values()].filter(g=>[...MATERIA
 renderGroups();
 
 // ---------- rhythm engine ----------
-let rhythmOn=false,grooveFocus='auto',divisionFocus='4',currentDivision=4,rhythmNextStep=0,rhythmStep=0,rhythmBar=0,rhythmPattern=null,rhythmBreakBar=false;
-let groovePrimary='house',grooveSecondary='jazz',grooveBlendAmount=0;
+let rhythmOn=false,grooveFocus='auto',divisionFocus='auto',currentDivision=11,rhythmNextStep=0,rhythmStep=0,rhythmBar=0,rhythmPattern=null,rhythmBreakBar=false;
+let groovePrimary='house',grooveSecondary='jazz',grooveBlendAmount=.05;
 const rhythmRoleState={kick:{sample:-1},snare:{sample:-1},hat:{sample:-1},perc:{sample:-1}};
 const rhythmCandidateCache=new Map();
 const GROOVES={
