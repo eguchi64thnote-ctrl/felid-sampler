@@ -9,10 +9,11 @@ async function requestScreenWakeLock(){
 async function releaseScreenWakeLock(){try{if(screenWakeLock){await screenWakeLock.release();screenWakeLock=null}}catch(e){}}
 async function unlockIOSAudio(){
   try{
-    await initAudio();
-    if(ctx && ctx.state!=='running')await ctx.resume();
-    if(ctx){const b=ctx.createBuffer(1,1,ctx.sampleRate),src=ctx.createBufferSource();src.buffer=b;src.connect(ctx.destination);src.start(0)}
-  }catch(e){}
+    initAudio();
+    const resumePromise=ctx&&ctx.state!=='running'?ctx.resume():Promise.resolve();
+    if(ctx){const b=ctx.createBuffer(1,1,ctx.sampleRate),src=ctx.createBufferSource(),g=ctx.createGain();g.gain.value=.00001;src.buffer=b;src.connect(g).connect(ctx.destination);src.start(0)}
+    await resumePromise;
+  }catch(e){console.warn('iOS audio unlock',e)}
 }
 const isiPhoneLike=/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
 if(isiPhoneLike){
