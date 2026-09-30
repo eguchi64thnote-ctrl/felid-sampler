@@ -342,3 +342,32 @@ function bindSnapshotButtons(){
   updateSnapshotButtons();
 }
 bindSnapshotButtons();
+
+// ---------- one-time preset export helper ----------
+(function(){
+  const q=new URLSearchParams(location.search);
+  if(q.get('preset-export')!=='1')return;
+  const bar=document.querySelector('.snapshotBar');
+  if(!bar)return;
+  const btn=document.createElement('button');
+  btn.id='exportDefaultsButton';
+  btn.textContent='COPY DEFAULT 2+3 DATA';
+  btn.style.minHeight='32px';
+  btn.onclick=async()=>{
+    recoverDefaultSnapshots();
+    const payload=JSON.stringify({default2:default2Snapshot,default3:default3Snapshot});
+    try{
+      await navigator.clipboard.writeText(payload);
+      flashSnapshotStatus('DEFAULT 2+3 DATA COPIED');
+    }catch(e){
+      const ta=document.createElement('textarea');
+      ta.value=payload;
+      ta.style.width='100%';
+      ta.style.minHeight='140px';
+      bar.after(ta);
+      ta.focus();ta.select();
+      flashSnapshotStatus('COPY THE DEFAULT 2+3 DATA BELOW');
+    }
+  };
+  bar.appendChild(btn);
+})();
