@@ -43,3 +43,23 @@ input[type=range]{touch-action:none}
 @media(max-width:390px){.grooveGrid,.divisionGrid{grid-template-columns:repeat(2,1fr)}.mobileDock{grid-template-columns:repeat(4,1fr)}.mobileDock button{font-size:7px}.statusrow span:nth-child(3),.statusrow span:nth-child(4){display:none}}
 @media(max-width:850px) and (orientation:landscape){body{padding-bottom:65px}.mobileDock{grid-template-columns:repeat(4,minmax(90px,160px));justify-content:center}.visual{height:90px}.controls{grid-template-columns:1fr 1fr}.rhythmControls,.mixerGrid{grid-template-columns:1fr 1fr}.panel{padding:14px}}
 @media(display-mode:standalone){body{padding-top:env(safe-area-inset-top)}.iosInstallHint{display:none!important}}
+
+/* v11 readability boost */
+h1{font-size:21px}
+.sub{font-size:12px}
+button{font-size:12px}
+.statusrow{font-size:11px}
+.sectionTitle{font-size:11px}
+.label,.value{font-size:11px}
+.rhythmReadout,.managerNote,.mixerHint,.uploadHint{font-size:9px}
+.grooveGrid button,.divisionGrid button,.sourceBtn{font-size:9px}
+@media(max-width:640px){
+  h1{font-size:17px}
+  .sub{font-size:10px}
+  button{font-size:10px}
+  .statusrow{font-size:10px}
+  .sectionTitle{font-size:10px}
+  .label,.value{font-size:10px}
+  .rhythmReadout,.managerNote,.mixerHint,.uploadHint{font-size:9px}
+  .grooveGrid button,.divisionGrid button,.sourceBtn{font-size:9px}
+}
