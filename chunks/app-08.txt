@@ -75,29 +75,32 @@ function clonePlain(v){return JSON.parse(JSON.stringify(v))}
 function safeParseJSON(raw){try{return raw?JSON.parse(raw):null}catch(e){return null}}
 function loadMemoryState(){
   const current=safeParseJSON(localStorage.getItem(SNAPSHOT_STORAGE_KEY));
-  if(current&&current.version===3&&current.slots)return current;
-
   const v2=safeParseJSON(localStorage.getItem(V2_SNAPSHOT_STORAGE_KEY));
-  if(v2&&v2.version===2){
-    const migrated={
-      version:3,
-      default2:v2.default2||null,
-      default3:v2.slots?.['1']||null,
-      slots:{'1':v2.slots?.['2']||null}
-    };
-    try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(migrated))}catch(e){}
-    return migrated;
-  }
-
   const legacy=safeParseJSON(localStorage.getItem(LEGACY_SNAPSHOT_STORAGE_KEY))||{};
-  const migrated={
+
+  const repaired={
     version:3,
-    default2:legacy['1']||null,
-    default3:legacy['2']||null,
-    slots:{'1':legacy['3']||null}
+    default2:
+      current?.default2 ||
+      v2?.default2 ||
+      legacy['1'] ||
+      null,
+    default3:
+      current?.default3 ||
+      v2?.slots?.['1'] ||
+      legacy['2'] ||
+      null,
+    slots:{
+      '1':
+        current?.slots?.['1'] ||
+        v2?.slots?.['2'] ||
+        legacy['3'] ||
+        null
+    }
   };
-  try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(migrated))}catch(e){}
-  return migrated;
+
+  try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(repaired))}catch(e){}
+  return repaired;
 }
 let memoryState=loadMemoryState();
 let snapshotSlots=memoryState.slots||{};
@@ -138,7 +141,15 @@ function persistMemoryState(){
   memoryState={version:3,default2:default2Snapshot,default3:default3Snapshot,slots:snapshotSlots};
   try{localStorage.setItem(SNAPSHOT_STORAGE_KEY,JSON.stringify(memoryState))}catch(e){}
 }
+function recoverDefaultSnapshots(){
+  const repaired=loadMemoryState();
+  if(!default2Snapshot&&repaired.default2)default2Snapshot=repaired.default2;
+  if(!default3Snapshot&&repaired.default3)default3Snapshot=repaired.default3;
+  if(!snapshotSlots['1']&&repaired.slots?.['1'])snapshotSlots['1']=repaired.slots['1'];
+  persistMemoryState();
+}
 function updateSnapshotButtons(){
+  recoverDefaultSnapshots();
   document.querySelectorAll('.snapshotSlot').forEach(b=>{
     const slot=b.dataset.slot,s=snapshotSlots[slot];
     b.textContent=s?'RECALL '+slot:'SAVE '+slot;
@@ -153,8 +164,9 @@ function updateSnapshotButtons(){
   ];
   for(const [sel,data,label] of defs){
     const b=$(sel);if(!b)continue;
-    b.disabled=!data;
-    b.title=data?('Recall '+label+'.'):(label+' is unavailable because the source memory was not found in this browser.');
+    b.disabled=false;
+    b.classList.toggle('missingSnapshot',!data);
+    b.title=data?('Recall '+label+'.'):('Tap to retry recovery for '+label+'.');
   }
 }
 function flashSnapshotStatus(text){
@@ -286,8 +298,16 @@ function makeDefault1Snapshot(){
   };
 }
 function restoreDefault1(){restoreSnapshotData(makeDefault1Snapshot(),'DEFAULT 1')}
-function restoreDefault2(){if(default2Snapshot)restoreSnapshotData(default2Snapshot,'DEFAULT 2')}
-function restoreDefault3(){if(default3Snapshot)restoreSnapshotData(default3Snapshot,'DEFAULT 3')}
+function restoreDefault2(){
+  recoverDefaultSnapshots();
+  if(default2Snapshot)restoreSnapshotData(default2Snapshot,'DEFAULT 2');
+  else flashSnapshotStatus('DEFAULT 2 DATA NOT FOUND');
+}
+function restoreDefault3(){
+  recoverDefaultSnapshots();
+  if(default3Snapshot)restoreSnapshotData(default3Snapshot,'DEFAULT 3');
+  else flashSnapshotStatus('DEFAULT 3 DATA NOT FOUND');
+}
 $('#default1Snapshot')?.addEventListener('click',restoreDefault1);
 $('#default2Snapshot')?.addEventListener('click',restoreDefault2);
 $('#default3Snapshot')?.addEventListener('click',restoreDefault3);
