@@ -48,6 +48,25 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   window.addEventListener('load',async()=>{try{const reg=await navigator.serviceWorker.register('./sw.js');reg.update().catch(()=>{})}catch(e){console.warn('service worker',e)}});
 }
 
+// ---------- first-view level controls ----------
+function arrangeFirstViewLevels(){
+  const grid=$('#levelOverviewGrid');if(!grid)return;
+  const specs=[
+    ['#mp_master','MASTER'],
+    ['#p_level','AMBIENT LEVEL'],
+    ['#rp_level','RHYTHM LEVEL'],
+    ['#mp_e808mix','808 LEVEL']
+  ];
+  for(const [selector,label] of specs){
+    const input=$(selector);if(!input)continue;
+    const wrap=input.closest('.mixerControl,.control');if(!wrap)continue;
+    wrap.classList.add('levelOverviewItem');
+    const lab=wrap.querySelector('.label');if(lab)lab.textContent=label;
+    grid.appendChild(wrap);
+  }
+}
+arrangeFirstViewLevels();
+
 // ---------- visual ----------
 const canvas=$('#scope'),cc=canvas.getContext('2d');let freq=null;
 function resize(){const dpr=Math.min(2,devicePixelRatio||1),r=canvas.getBoundingClientRect();canvas.width=Math.floor(r.width*dpr);canvas.height=Math.floor(r.height*dpr);cc.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
