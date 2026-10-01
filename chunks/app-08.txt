@@ -178,8 +178,8 @@ function restoreSnapshotData(s,label){
   if(rs.grooveFocus==='auto'||GROOVES[rs.grooveFocus])grooveFocus=rs.grooveFocus;
   if(GROOVES[rs.groovePrimary])groovePrimary=rs.groovePrimary;if(GROOVES[rs.grooveSecondary])grooveSecondary=rs.grooveSecondary;
   if(Number.isFinite(Number(rs.grooveBlendAmount)))grooveBlendAmount=clamp(Number(rs.grooveBlendAmount),0,1);
-  if(rs.divisionFocus==='auto'||DIVISION_OPTIONS.includes(Number(rs.divisionFocus)))divisionFocus=rs.divisionFocus;
-  if(DIVISION_OPTIONS.includes(Number(rs.currentDivision)))currentDivision=Number(rs.currentDivision);
+  if(rs.divisionFocus==='auto'||DIVISION_OPTIONS.includes(Number(rs.divisionFocus)))divisionFocus=rs.divisionFocus;else if([9,11].includes(Number(rs.divisionFocus)))divisionFocus='4';
+  if(DIVISION_OPTIONS.includes(Number(rs.currentDivision)))currentDivision=Number(rs.currentDivision);else if([9,11].includes(Number(rs.currentDivision)))currentDivision=4;
   rhythmOn=!!rs.on;rhythmStep=0;rhythmBar=0;if(ctx)rhythmNextStep=ctx.currentTime+.04;
   for(const id of Object.keys(configs))syncControl(id,state,configs[id]);for(const id of Object.keys(metaConfigs))syncControl(id,meta,metaConfigs[id]);for(const id of Object.keys(rhythmConfigs))syncRhythmControl(id);for(const id of Object.keys(mixerConfigs))syncMixerControl(id);
   syncAllRandomRangeEditors();for(const id of Object.keys(configs))syncLockButton('a',id);for(const id of Object.keys(rhythmConfigs))syncLockButton('r',id);for(const id of Object.keys(mixerConfigs))syncLockButton('m',id);
@@ -195,7 +195,7 @@ function restoreSnapshot(slot){restoreSnapshotData(snapshotSlots[String(slot)],'
 function makeDefault1Snapshot(){
   const valuesFrom=defs=>Object.fromEntries(Object.entries(defs).map(([id,c])=>[id,c.def]));
   const rangesFrom=defs=>Object.fromEntries(Object.entries(defs).map(([id,c])=>[id,{min:c.rmin??c.min,max:c.rmax??c.max}]));
-  return {version:1,savedAt:0,state:valuesFrom(configs),meta:valuesFrom(metaConfigs),rhythmState:valuesFrom(rhythmConfigs),mixerState:valuesFrom(mixerConfigs),randomRanges:rangesFrom(configs),rhythmRandomRanges:rangesFrom(rhythmConfigs),mixerRandomRanges:rangesFrom(mixerConfigs),holds:{ambient:[],rhythm:[],mixer:['e808kick','bassAttack','bassRelease']},randomWalk:true,rhythm:{on:false,grooveFocus:'auto',groovePrimary:'house',grooveSecondary:'jazz',grooveBlendAmount:.05,divisionFocus:'auto',currentDivision:11},groups:[...GROUPS.values()].map(g=>({id:g.id,active:g.builtin?true:false,weight:g.builtin?1:(Number(g.weight)||1)})),materials:[...MATERIALS.values()].map(m=>({id:m.id,enabled:m.builtin?true:false,groupId:m.groupId}))};
+  return {version:1,savedAt:0,state:valuesFrom(configs),meta:valuesFrom(metaConfigs),rhythmState:valuesFrom(rhythmConfigs),mixerState:valuesFrom(mixerConfigs),randomRanges:rangesFrom(configs),rhythmRandomRanges:rangesFrom(rhythmConfigs),mixerRandomRanges:rangesFrom(mixerConfigs),holds:{ambient:[],rhythm:[],mixer:['e808kick','bassAttack','bassRelease']},randomWalk:true,rhythm:{on:false,grooveFocus:'auto',groovePrimary:'house',grooveSecondary:'jazz',grooveBlendAmount:.05,divisionFocus:'auto',currentDivision:4},groups:[...GROUPS.values()].map(g=>({id:g.id,active:g.builtin?true:false,weight:g.builtin?1:(Number(g.weight)||1)})),materials:[...MATERIALS.values()].map(m=>({id:m.id,enabled:m.builtin?true:false,groupId:m.groupId}))};
 }
 function restoreDefault1(){restoreSnapshotData(makeDefault1Snapshot(),'DEFAULT 1')}
 function restoreDefault2(){restoreSnapshotData(default2Snapshot,'DEFAULT 2')}

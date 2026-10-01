@@ -6,7 +6,7 @@ $('#oneGroup').onclick=()=>{const arr=[...GROUPS.values()].filter(g=>[...MATERIA
 renderGroups();
 
 // ---------- rhythm engine ----------
-let rhythmOn=false,grooveFocus='auto',divisionFocus='auto',currentDivision=11,rhythmNextStep=0,rhythmStep=0,rhythmBar=0,rhythmPattern=null,rhythmBreakBar=false;
+let rhythmOn=false,grooveFocus='auto',divisionFocus='auto',currentDivision=4,rhythmNextStep=0,rhythmStep=0,rhythmBar=0,rhythmPattern=null,rhythmBreakBar=false;
 let groovePrimary='house',grooveSecondary='jazz',grooveBlendAmount=.05;
 const rhythmRoleState={kick:{sample:-1},snare:{sample:-1},hat:{sample:-1},perc:{sample:-1}};
 const rhythmCandidateCache=new Map();
@@ -22,7 +22,7 @@ const GROOVE_KEYS=Object.keys(GROOVES);const GROOVE_LABELS={house:'HOUSE',techno
 function updateGrooveButtons(){document.querySelectorAll('#grooveGrid button').forEach(b=>b.classList.toggle('active',b.dataset.groove===grooveFocus))}
 function setGrooveFocus(g){if(g!=='auto'&&!GROOVES[g])return;grooveFocus=g;updateGrooveButtons();newGroove(true)}
 document.querySelectorAll('#grooveGrid button').forEach(b=>b.onclick=()=>setGrooveFocus(b.dataset.groove));
-const DIVISION_OPTIONS=[4,3,5,7,9,11];
+const DIVISION_OPTIONS=[4,3,5,7];
 function divisionLabel(n){return n===4?'STRAIGHT / 4 per beat':n+'-LET / '+n+' per beat'}
 function updateDivisionButtons(){document.querySelectorAll('#divisionGrid button').forEach(b=>b.classList.toggle('active',b.dataset.division===divisionFocus))}
 function updateDivisionReadout(){const el=$('#divisionReadout');if(el)el.textContent=(divisionFocus==='auto'?'AUTO → ':'')+divisionLabel(currentDivision)+' / '+(currentDivision*4)+' steps per bar'}
