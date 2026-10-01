@@ -1,4 +1,4 @@
-window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.code==='Space'){e.preventDefault();running?stop():start()}if(e.key.toLowerCase()==='g')newGroove(true)});
+window.addEventListener('keydown',e=>{if(e.target.closest('input,select,button,textarea,[contenteditable]'))return;if(e.code==='Space'){e.preventDefault();running?stop():start()}if(e.key.toLowerCase()==='g')newGroove(true)});
 
 
 // ---------- v11 iPhone / PWA helpers ----------
@@ -124,6 +124,7 @@ function captureSnapshot(){
     meta:{...meta},
     rhythmState:{...rhythmState},
     mixerState:{...mixerState},
+    sine:window.sineLayer?.capture(),
     randomRanges:clonePlain(randomRanges),
     rhythmRandomRanges:clonePlain(rhythmRandomRanges),
     mixerRandomRanges:clonePlain(mixerRandomRanges),
@@ -161,6 +162,7 @@ function restoreRanges(target,source,configsMap){if(!source)return;for(const [id
 function restoreHoldSet(set,values,valid){set.clear();for(const id of (values||[]))if(valid[id])set.add(id)}
 function restoreSnapshotData(s,label){
   if(!s)return;
+  if(s.sine)window.sineLayer?.restore(s.sine);
   morphState=null;rhythmMorphState=null;mixerMorphState=null;
   restoreObject(state,s.state,configs);restoreObject(meta,s.meta,metaConfigs);restoreObject(rhythmState,s.rhythmState,rhythmConfigs);restoreObject(mixerState,s.mixerState,mixerConfigs);
   restoreRanges(randomRanges,s.randomRanges,configs);restoreRanges(rhythmRandomRanges,s.rhythmRandomRanges,rhythmConfigs);restoreRanges(mixerRandomRanges,s.mixerRandomRanges,mixerConfigs);

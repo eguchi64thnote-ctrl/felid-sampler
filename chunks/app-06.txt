@@ -33,7 +33,8 @@ function scheduleGrain(L,when){const i=chooseSample(L);if(i<0)return;const b=buf
 }
 function schedulerTick(){
   if(!running||!ctx)return;
-  if(![...GROUPS.values()].some(groupPlayable)){$('#status').textContent='GENERATING / NO ACTIVE MATERIAL';return}
+  sineScheduler(ctx.currentTime,ctx.currentTime+.22);
+  if(![...GROUPS.values()].some(groupPlayable)){$('#status').textContent=sineState.enabled?'GENERATING / SYNTH ONLY':'GENERATING / NO ACTIVE MATERIAL';return}
   const now=ctx.currentTime,beat=60/state.tempo,base=beat/Math.max(.04,state.density);
   if(now<globalRestUntil){$('#status').textContent='MA / SILENCE  '+Math.max(0,globalRestUntil-now).toFixed(1)+'s';rhythmScheduler(now,now+.22);return}
   if(nextRestCheck<=now){

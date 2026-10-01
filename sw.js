@@ -1,6 +1,6 @@
-const CACHE='felid-generator-variant-01-v1';
+const CACHE='felid-generator-variant-01-sine-v2';
 const ASSETS=['./','./index.html','./styles.css','./app.js',
-'./chunks/app-00.txt','./chunks/app-01.txt','./chunks/app-02.txt','./chunks/app-03.txt','./chunks/app-04.txt','./chunks/app-05.txt','./chunks/app-06.txt','./chunks/app-07.txt','./chunks/app-08.txt',
+'./chunks/app-00.txt','./chunks/app-01.txt','./chunks/app-02.txt','./chunks/app-03.txt','./chunks/app-04.txt','./chunks/app-05.txt','./chunks/app-06.txt','./chunks/app-07.txt','./chunks/app-08.txt','./chunks/app-09.txt',
 './samples/track01.mp3','./samples/track02.mp3','./samples/track03.mp3','./samples/track04.mp3','./samples/track05.mp3','./samples/track06.mp3','./samples/track07.mp3','./samples/track08.mp3','./samples/track09.mp3',
 './samples/in-track01.mp3','./samples/in-track02.mp3','./samples/in-track03.mp3','./samples/in-track04.mp3','./samples/in-track05.mp3','./samples/in-track06.mp3','./samples/in-track07.mp3','./samples/in-track08.mp3','./samples/in-track09.mp3','./samples/in-track10.mp3',
 './manifest.webmanifest','./icon-192.png','./icon-512.png'];
