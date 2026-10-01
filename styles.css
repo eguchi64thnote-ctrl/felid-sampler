@@ -460,3 +460,14 @@ button{font-size:12px}
   .visual{height:96px}
   .visualInfo{top:8px;left:10px;font-size:7px}
 }
+
+@media(max-width:640px) and (orientation:portrait){
+  header .transport{display:none}
+  .mobileDock button.mobilePrimary,
+  .mobileDock button.mobileOn{
+    background:var(--accent);
+    color:#050505;
+    border-color:var(--accent);
+    font-weight:700;
+  }
+}
