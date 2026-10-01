@@ -1,6 +1,6 @@
 {
-  "name": "Karesansui in the air Generator",
-  "short_name": "Karesansui",
+  "name": "Karesansui Variant 01",
+  "short_name": "Variant 01",
   "description": "A generative sound app by FeLid, built from FeLid\u2019s own music.",
   "start_url": "./index.html",
   "scope": "./",
