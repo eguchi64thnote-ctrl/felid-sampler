@@ -442,3 +442,14 @@ button{font-size:12px}
 }
 
 .randomRange{display:none!important}
+
+.levelOverview{padding:12px 22px 14px;border-bottom:1px solid var(--line);background:#0d0d0d}
+.levelOverviewHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:8px;color:#666;letter-spacing:.12em}
+.levelOverviewHead span:first-child{font-size:10px;color:var(--soft);letter-spacing:.16em}
+.levelOverviewGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.levelOverviewItem{margin:0!important;min-width:0;background:#101010;border:1px solid #282828;padding:9px}
+.levelOverviewItem.masterStrip{grid-column:auto;border-color:#4a4a4a}
+.levelOverviewItem .controlTop{margin-bottom:6px}
+.levelOverviewItem .mixerMeter{margin-top:6px}
+@media(max-width:850px){.levelOverview{padding:10px 14px 12px}.levelOverviewGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.levelOverviewHead span:last-child{display:none}}
+@media(max-width:640px){.levelOverviewGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.levelOverviewItem{padding:7px}.levelOverviewItem .label{font-size:8px}.levelOverviewItem .value{font-size:8px;min-width:auto}.levelOverviewItem .lock{font-size:6px;min-width:30px;padding:2px 4px}}
