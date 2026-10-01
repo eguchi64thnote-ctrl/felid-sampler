@@ -1,0 +1,31 @@
+
+// Only the visible thumb captures a drag. The rest of every bar scrolls normally.
+const scrollSafeRanges=[];
+function syncScrollSafeRange(model){
+  const {input,thumb}=model,lo=Number(input.min)||0,hi=Number(input.max)||100,n=clamp((Number(input.value)-lo)/Math.max(.000001,hi-lo),0,1);
+  const half=input.classList.contains('rangeCurrent')?6:5;
+  thumb.style.left=`calc(${n*100}% + ${half-2*half*n}px)`;
+  thumb.hidden=input.disabled;
+}
+function installScrollSafeRange(input){
+  if(input.dataset.scrollSafe)return;input.dataset.scrollSafe='true';
+  let host=input.parentElement;
+  if(!input.classList.contains('rangeCurrent')){host=document.createElement('span');host.className='scrollSafeRange';input.before(host);host.appendChild(input)}
+  else host.classList.add('scrollSafeRangeShell');
+  const thumb=document.createElement('span');thumb.className='scrollSafeThumb';thumb.setAttribute('aria-hidden','true');host.appendChild(thumb);
+  const model={input,thumb,pointer:null,startX:0,startValue:0};scrollSafeRanges.push(model);
+  thumb.addEventListener('pointerdown',e=>{if(e.button!==0||model.pointer!==null||input.disabled)return;e.preventDefault();e.stopPropagation();input.focus({preventScroll:true});model.pointer=e.pointerId;model.startX=e.clientX;model.startValue=Number(input.value);thumb.setPointerCapture(e.pointerId)});
+  thumb.addEventListener('pointermove',e=>{
+    if(model.pointer!==e.pointerId)return;e.preventDefault();const r=input.getBoundingClientRect(),lo=Number(input.min)||0,hi=Number(input.max)||100;
+    const width=r.width-(input.classList.contains('rangeCurrent')?12:10);if(width<=0)return;
+    const step=input.step==='any'?0:(Number(input.step)||1),raw=clamp(model.startValue+(e.clientX-model.startX)/width*(hi-lo),lo,hi);
+    input.value=step?String(clamp(lo+Math.round((raw-lo)/step)*step,lo,hi)):String(raw);
+    input.dispatchEvent(new Event('input',{bubbles:true}));syncScrollSafeRange(model);
+  });
+  const release=e=>{if(model.pointer!==e.pointerId)return;model.pointer=null;input.dispatchEvent(new Event('change',{bubbles:true}))};
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])thumb.addEventListener(type,release);
+  input.addEventListener('input',()=>syncScrollSafeRange(model));syncScrollSafeRange(model);
+}
+document.querySelectorAll('input[type="range"]').forEach(installScrollSafeRange);
+new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes){if(node.nodeType!==1)continue;if(node.matches('input[type="range"]'))installScrollSafeRange(node);node.querySelectorAll('input[type="range"]').forEach(installScrollSafeRange)}}).observe(document.querySelector('.app'),{childList:true,subtree:true});
+function scrollSafeRangeTick(){for(const model of scrollSafeRanges){if(model.input.isConnected)syncScrollSafeRange(model)}requestAnimationFrame(scrollSafeRangeTick)}requestAnimationFrame(scrollSafeRangeTick);
