@@ -1,7 +1,7 @@
 // Scheduling and lifecycle regression tests; run with node tests/sine.test.cjs.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const elements=new Map();
-function element(){return {value:'',textContent:'',checked:false,dataset:{},classList:{toggle(){}},setAttribute(){},addEventListener(){},before(){}}}
+function element(){return {value:'',textContent:'',checked:false,dataset:{},classList:{toggle(){},add(){}},closest(){return null},setAttribute(){},addEventListener(){},before(){}}}
 const $=s=>{if(!elements.has(s))elements.set(s,element());return elements.get(s)};
 const voices=[];let currentTime=0;
 function param(){return {value:0,setValueAtTime(v,t){this.value=v;assert(Number.isFinite(v)&&Number.isFinite(t));},linearRampToValueAtTime(v,t){this.value=v;assert(Number.isFinite(v)&&Number.isFinite(t));},exponentialRampToValueAtTime(v,t){assert(v>0&&Number.isFinite(t));},setTargetAtTime(v){this.value=v},cancelScheduledValues(){}}}
