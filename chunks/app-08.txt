@@ -79,13 +79,16 @@ window.addEventListener('error',e=>{$('#status').textContent='ERROR — '+e.mess
 // ---------- iPhone column balancing ----------
 function balanceIPhoneColumns(){
   const engine=$('#enginePanel'),right=$('#rightPanel'),random=$('#randomSection'),material=$('#materialSection');
+  const visual=$('.visual'),header=document.querySelector('header'),levels=$('.levelOverview'),status=$('.statusrow');
   if(!engine||!right||!random||!material)return;
   const compact=window.matchMedia('(max-width:640px) and (orientation:portrait)').matches;
   if(material.parentElement!==engine)engine.appendChild(material);
   if(compact){
     if(random.parentElement!==engine)engine.appendChild(random);
+    if(visual&&header&&levels&&visual.previousElementSibling!==header)header.after(visual);
   }else{
     if(random.parentElement!==right)right.appendChild(random);
+    if(visual&&status&&visual.previousElementSibling!==status)status.after(visual);
   }
 }
 balanceIPhoneColumns();
