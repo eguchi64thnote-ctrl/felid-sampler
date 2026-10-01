@@ -7,7 +7,8 @@ const voices=[];let currentTime=0;
 function param(){return {value:0,setValueAtTime(v,t){this.value=v;assert(Number.isFinite(v)&&Number.isFinite(t));},linearRampToValueAtTime(v,t){this.value=v;assert(Number.isFinite(v)&&Number.isFinite(t));},exponentialRampToValueAtTime(v,t){assert(v>0&&Number.isFinite(t));},setTargetAtTime(v){this.value=v},cancelScheduledValues(){}}}
 function node(){return {connect(){return arguments[0]},disconnect(){},gain:param(),pan:param(),frequency:param(),delayTime:param(),Q:param()}}
 const ctx={get currentTime(){return currentTime},sampleRate:8000,createGain:node,createStereoPanner:node,createConvolver:node,createDelay:node,createBiquadFilter:node,createPeriodicWave:(real,imag)=>({real,imag}),createBuffer:(channels,length)=>({getChannelData:()=>new Float32Array(length)}),createOscillator(){const o=node();o.setPeriodicWave=wave=>{o.type="custom";o.wave=wave};o.start=t=>{o.t=t;assert(t>=currentTime);voices.push(o)};o.stop=t=>o.end=t;return o}};
-const sandbox={console,assert,$,ctx,compressor:node(),window:{},document:{createElement:element,querySelector:$,querySelectorAll:()=>[]},localStorage:{getItem:()=>null,setItem(){}},clamp:(n,a,b)=>Math.min(b,Math.max(a,n)),rand:Math.random,state:{tempo:120},rhythmState:{swing:.3},grooveFocus:'house',groovePrimary:'house',grooveSecondary:'jazz',grooveBlendAmount:.25,voices};
+const storage=new Map();
+const sandbox={console,assert,$,ctx,compressor:node(),window:{},document:{createElement:element,querySelector:$,querySelectorAll:()=>[]},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},clamp:(n,a,b)=>Math.min(b,Math.max(a,n)),rand:Math.random,state:{tempo:120},rhythmState:{swing:.3},grooveFocus:'house',groovePrimary:'house',grooveSecondary:'jazz',grooveBlendAmount:.25,voices};
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync('chunks/app-09.txt','utf8')+`
 function finishVoices(){for(const v of [...sineVoices])v.o.onended()}
@@ -32,5 +33,7 @@ state.tempo=60;applySineEffects();assert.equal(sineEcho.delayTime.value,.75);res
 sineState.tone=.7;sineState.variation=1;sineState.pan=.8;sineState.motion=1;
 for(let i=0;i<10;i++){sineNote(60,ctx.currentTime+.01,1,1);const v=[...sineVoices].at(-1);assert.equal(v.o.type,'custom');assert(v.p.pan.value>=-.8&&v.p.pan.value<=.8)}
 sineState.enabled=false;syncSine();assert.equal(sineBus.gain.value,0);finishVoices();
-console.log('PASS: effects, tempo delay, feedback bound, moving pan, harmonics, modes, suspended pitches, arpeggio order, mute, settings, bounds, voice cleanup');
+sineState.level=.42;sineState.pool=['m11','maj7sus4'];saveSineDefault();sineState.level=.9;sineState.pool=['sus2'];recallSineDefault();assert.equal(sineState.level,.42);assert.deepEqual(sineState.pool,['m11','maj7sus4']);assert.equal(Object.keys(sineChords).length,24);
+for(const [name,intervals] of Object.entries(sineChords)){assert(intervals[0]===0);assert(intervals.every(x=>Number.isFinite(x)&&x>=0));sineQuality=name;sineState.pool=[name];chooseSineChord();assert(sineNotes().length>=3)}
+console.log('PASS: custom defaults, 24 chords, effects, tempo delay, feedback bound, moving pan, harmonics, modes, suspended pitches, arpeggio order, mute, settings, bounds, voice cleanup');
 `,sandbox);
