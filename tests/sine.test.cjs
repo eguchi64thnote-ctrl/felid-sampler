@@ -23,8 +23,8 @@ sineState.direction='down';simulate('arp');const first=voices.at(-1).frequency.v
 finishVoices();sineState.enabled=false;let n=voices.length;sineScheduler(0,1);assert.equal(voices.length,n);
 sineState.enabled=true;sineState.single=sineState.arp=sineState.chord=0;sineNext=.01;sineScheduler(0,1);assert.equal(voices.length,n);
 // Settings round-trip and reject empty/unknown pools and out-of-range values.
-restoreSine({root:5,pool:['9sus4'],level:4,decay:-2,range:10,enabled:true});assert.equal(sineState.level,1);assert.equal(sineState.decay,.045);assert.equal(sineState.range,3);assert.equal(sineState.root,5);assert.deepEqual(sineState.pool,['9sus4']);
-restoreSine({pool:['invalid']});assert.deepEqual(sineState.pool,['9sus4']);const saved=window.sineLayer.capture();sineState.root=2;window.sineLayer.restore(saved);assert.equal(sineState.root,5);
+restoreSine({chordPalette:2,root:5,pool:['9sus4'],level:4,decay:-2,range:10,enabled:true});assert.equal(sineState.level,1);assert.equal(sineState.decay,.045);assert.equal(sineState.range,3);assert.equal(sineState.root,5);assert.deepEqual(sineState.pool,['9sus4']);
+restoreSine({chordPalette:2,pool:['invalid']});assert.deepEqual(sineState.pool,sineDefaults.pool);const saved=window.sineLayer.capture();sineState.root=2;window.sineLayer.restore(saved);assert.equal(sineState.root,5);
 // Gain applies independently; turning off fades and stops all active voices.
 simulate('chord');sineState.level=.37;syncSine();assert(sineVoices.size>0);resetSine();for(const v of sineVoices)assert.equal(v.o.end,.04);finishVoices();assert.equal(sineVoices.size,0);
 // Effects are independent, feedback bounded, delay follows tempo, and pan remains in range.
@@ -33,7 +33,7 @@ state.tempo=60;applySineEffects();assert.equal(sineEcho.delayTime.value,.75);res
 sineState.tone=.7;sineState.variation=1;sineState.pan=.8;sineState.motion=1;
 for(let i=0;i<10;i++){sineNote(60,ctx.currentTime+.01,1,1);const v=[...sineVoices].at(-1);assert.equal(v.o.type,'custom');assert(v.p.pan.value>=-.8&&v.p.pan.value<=.8)}
 sineState.enabled=false;syncSine();assert.equal(sineBus.gain.value,0);finishVoices();
-sineState.level=.42;sineState.pool=['m11','maj7sus4'];saveSineDefault();sineState.level=.9;sineState.pool=['sus2'];recallSineDefault();assert.equal(sineState.level,.42);assert.deepEqual(sineState.pool,['m11','maj7sus4']);assert.equal(Object.keys(sineChords).length,24);
+sineState.level=.42;sineState.pool=['m11','7sus4♭9'];saveSineDefault();sineState.level=.9;sineState.pool=['sus2'];recallSineDefault();assert.equal(sineState.level,.42);assert.deepEqual(sineState.pool,['m11','7sus4♭9']);assert.equal(Object.keys(sineChords).length,28);
 for(const [name,intervals] of Object.entries(sineChords)){assert(intervals[0]===0);assert(intervals.every(x=>Number.isFinite(x)&&x>=0));sineQuality=name;sineState.pool=[name];chooseSineChord();assert(sineNotes().length>=3)}
-console.log('PASS: custom defaults, 24 chords, effects, tempo delay, feedback bound, moving pan, harmonics, modes, suspended pitches, arpeggio order, mute, settings, bounds, voice cleanup');
+console.log('PASS: custom defaults, 28 chords, effects, tempo delay, feedback bound, moving pan, harmonics, modes, suspended pitches, arpeggio order, mute, settings, bounds, voice cleanup');
 `,sandbox);

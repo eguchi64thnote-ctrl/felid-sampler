@@ -1,0 +1,12 @@
+
+// Thin source cuts and synthesized 808 independently, after groove generation.
+const beatNoteState={source:.9,e808:.9};
+function beatNoteAllowed(role){const amount=beatNoteState[role];return amount>=1||amount>0&&rand()<amount}
+function saveBeatNotes(){try{localStorage.setItem('karesansui-variant01-beat-notes-v1',JSON.stringify(beatNoteState))}catch(e){}}
+function syncBeatNotes(){for(const role of ['source','e808']){$('#beatNotes_'+role).value=beatNoteState[role];$('#beatNotesValue_'+role).textContent=Math.round(beatNoteState[role]*100)+'%'}}
+function restoreBeatNotes(value){if(!value||typeof value!=='object')return;for(const role of ['source','e808'])if(Number.isFinite(value[role]))beatNoteState[role]=clamp(value[role],0,1);syncBeatNotes();saveBeatNotes()}
+const beatNotePanel=document.createElement('div');beatNotePanel.className='beatNotePanel';beatNotePanel.innerHTML=`<div class="sectionTitle">音数 / NOTE AMOUNT</div><div class="rhythmControls">${[['source','リズムの音数'],['e808','808の音数']].map(([role,label])=>`<div><label class="sineControlLabel" for="beatNotes_${role}">${label}<output id="beatNotesValue_${role}"></output></label><input id="beatNotes_${role}" type="range" min="0" max="1" step="0.01"></div>`).join('')}</div><p class="sineHint">100%で従来の音数。下げると音を間引き、隙間を増やします。0%でそのパートを休止。音量とは独立し、RANDOM WALKでもこの割合を保ちます。</p>`;
+$('#rhythmControls').before(beatNotePanel);
+for(const role of ['source','e808']){const input=$('#beatNotes_'+role);input.addEventListener('input',e=>{beatNoteState[role]=Number(e.target.value);syncBeatNotes();saveBeatNotes()});installScrollSafeRange(input)}
+try{restoreBeatNotes(JSON.parse(localStorage.getItem('karesansui-variant01-beat-notes-v1')))}catch(e){}
+syncBeatNotes();window.beatNoteController={capture:()=>({...beatNoteState}),restore:restoreBeatNotes};

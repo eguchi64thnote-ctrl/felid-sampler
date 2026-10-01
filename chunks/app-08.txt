@@ -125,6 +125,7 @@ function captureSnapshot(){
     rhythmState:{...rhythmState},
     mixerState:{...mixerState},
     sine:window.sineLayer?.capture(),
+    beatNotes:window.beatNoteController?.capture(),
     randomRanges:clonePlain(randomRanges),
     rhythmRandomRanges:clonePlain(rhythmRandomRanges),
     mixerRandomRanges:clonePlain(mixerRandomRanges),
@@ -163,6 +164,7 @@ function restoreHoldSet(set,values,valid){set.clear();for(const id of (values||[
 function restoreSnapshotData(s,label){
   if(!s)return;
   if(s.sine)window.sineLayer?.restore(s.sine);
+  if(s.beatNotes)window.beatNoteController?.restore(s.beatNotes);
   morphState=null;rhythmMorphState=null;mixerMorphState=null;
   restoreObject(state,s.state,configs);restoreObject(meta,s.meta,metaConfigs);restoreObject(rhythmState,s.rhythmState,rhythmConfigs);restoreObject(mixerState,s.mixerState,mixerConfigs);
   restoreRanges(randomRanges,s.randomRanges,configs);restoreRanges(rhythmRandomRanges,s.rhythmRandomRanges,rhythmConfigs);restoreRanges(mixerRandomRanges,s.mixerRandomRanges,mixerConfigs);
