@@ -2,18 +2,40 @@
 // Sine particles: independent phrases, gently influenced by the current groove.
 const sineChords={sus2:[0,2,7],sus4:[0,5,7],'7sus4':[0,5,7,10],'9sus4':[0,5,7,10,14],'add9(no3)':[0,7,14],'quartal':[0,5,10]};
 const sineRoots=['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
-const sineDefaults={enabled:true,level:.5,decay:.22,density:.62,octave:4,range:2,link:.4,single:45,arp:40,chord:15,bars:2,root:0,direction:'updown',pool:['sus2','sus4','7sus4','9sus4']};
+const sineDefaults={enabled:true,level:.5,decay:.22,density:.62,octave:4,range:2,link:.4,single:45,arp:40,chord:15,bars:2,reverb:.25,delay:.22,delayBeats:.75,feedback:.35,pan:1,motion:.4,tone:.18,variation:.45,root:0,direction:'updown',pool:['sus2','sus4','7sus4','9sus4']};
 let sineState=JSON.parse(JSON.stringify(sineDefaults)),sineBus=null,sineNext=0,sineStep=0,sineBeat=0,sineChangeAt=0,sinePhraseAt=0,sineQuality='sus2',sineMode='single',sineArp=0,sineEvents=0;
 const sineVoices=new Set();
-const sineKnobs={level:['音量',0,1,.01],decay:['音の長さ',.045,1.2,.005],density:['鳴る密度',0,1,.01],octave:['基準オクターブ',2,6,1],range:['音域（オクターブ）',1,3,1],link:['リズムとの連動度',0,1,.01],single:['単音の割合',0,100,1],arp:['アルペジオの割合',0,100,1],chord:['和音の割合',0,100,1],bars:['コード変更間隔（小節）',1,16,1]};
-function sineValue(id){const v=sineState[id];return id==='decay'?Math.round(v*1000)+' ms':['level','density','link'].includes(id)?Math.round(v*100)+'%':['single','arp','chord'].includes(id)?v+'':v+''}
+let sineInput=null,sineDry=null,sineReverb=null,sineReverbSend=null,sineEcho=null,sineEchoSend=null,sineFeedback=null,sineEchoFilter=null,sineLastDelay=null;
+function initSineEffects(){
+  if(sineBus)return;
+  sineInput=ctx.createGain();sineBus=ctx.createGain();sineDry=ctx.createGain();sineDry.gain.value=.9;
+  sineReverb=ctx.createConvolver();sineReverbSend=ctx.createGain();
+  const length=Math.floor(ctx.sampleRate*3.2),impulse=ctx.createBuffer(2,length,ctx.sampleRate);
+  for(let ch=0;ch<2;ch++){const data=impulse.getChannelData(ch);for(let i=0;i<length;i++)data[i]=(rand()*2-1)*Math.pow(1-i/length,3)*.7}
+  sineReverb.buffer=impulse;
+  sineEcho=ctx.createDelay(3);sineEchoSend=ctx.createGain();sineFeedback=ctx.createGain();sineEchoFilter=ctx.createBiquadFilter();sineEchoFilter.type='lowpass';sineEchoFilter.frequency.value=4200;sineEchoFilter.Q.value=.5;
+  sineInput.connect(sineDry).connect(sineBus);
+  sineInput.connect(sineReverb).connect(sineReverbSend).connect(sineBus);
+  sineInput.connect(sineEcho).connect(sineEchoSend).connect(sineBus);
+  sineEcho.connect(sineEchoFilter).connect(sineFeedback).connect(sineEcho);
+  sineBus.connect(compressor);applySineEffects(true);
+}
+function applySineEffects(initial=false){
+  if(!sineBus||!ctx)return;
+  const now=ctx.currentTime,set=(parameter,value)=>initial?parameter.setValueAtTime(value,now):parameter.setTargetAtTime(value,now,.04);
+  set(sineBus.gain,sineState.enabled?sineState.level:0);set(sineReverbSend.gain,sineState.reverb*.85);set(sineEchoSend.gain,sineState.delay*.75);set(sineFeedback.gain,sineState.feedback);
+  const seconds=clamp(60/state.tempo*sineState.delayBeats,.04,2.8);
+  if(initial||sineLastDelay===null||Math.abs(seconds-sineLastDelay)>.005){set(sineEcho.delayTime,seconds);sineLastDelay=seconds}
+}
+const sineKnobs={level:['音量',0,1,.01],decay:['音の長さ',.045,1.2,.005],density:['鳴る密度',0,1,.01],octave:['基準オクターブ',2,6,1],range:['音域（オクターブ）',1,3,1],link:['リズムとの連動度',0,1,.01],single:['単音の割合',0,100,1],arp:['アルペジオの割合',0,100,1],chord:['和音の割合',0,100,1],bars:['コード変更間隔（小節）',1,16,1],reverb:['リバーブ',0,1,.01],delay:['ディレイ',0,1,.01],delayBeats:['ディレイ間隔（拍）',.125,2,.125],feedback:['ディレイの反復',0,.78,.01],pan:['左右の広がり',0,1,.01],motion:['パンの動き',0,1,.01],tone:['倍音の量',0,1,.01],variation:['粒ごとの変化',0,1,.01]};
+function sineValue(id){const v=sineState[id];return id==='decay'?Math.round(v*1000)+' ms':['level','density','link','reverb','delay','feedback','pan','motion','tone','variation'].includes(id)?Math.round(v*100)+'%':['single','arp','chord'].includes(id)?v+'':v+''}
 function syncSine(){
   const b=$('#sineToggle');b.textContent=sineState.enabled?'SYNTH ON':'SYNTH OFF';b.classList.toggle('on',sineState.enabled);b.setAttribute('aria-pressed',String(sineState.enabled));
   for(const id of Object.keys(sineKnobs)){$('#sine_'+id).value=sineState[id];$('#sineValue_'+id).textContent=sineValue(id)}
   $('#sineNow').textContent=sineRoots[sineState.root]+' '+sineQuality;
   $('#sineRoot').value=sineState.root;$('#sineDirection').value=sineState.direction;
   document.querySelectorAll('[data-sine-chord]').forEach(el=>el.checked=sineState.pool.includes(el.dataset.sineChord));
-  if(sineBus&&ctx)sineBus.gain.setTargetAtTime(sineState.enabled?sineState.level:0,ctx.currentTime,.02);
+  applySineEffects();
 }
 function saveSine(){try{localStorage.setItem('karesansui-variant01-sine-v1',JSON.stringify(sineState))}catch(e){}}
 function restoreSine(value){
@@ -36,12 +58,17 @@ function chooseSineChord(){
 function sineNotes(){const out=[];for(let oct=0;oct<sineState.range;oct++)for(const interval of sineChords[sineQuality])out.push(12*(sineState.octave+1)+sineState.root+interval+12*oct);return [...new Set(out)].sort((a,b)=>a-b)}
 function sineNote(midi,t,velocity,count){
   if(sineVoices.size>=32)return;
-  if(!sineBus){sineBus=ctx.createGain();sineBus.gain.value=sineState.level;sineBus.connect(compressor)}
-  const o=ctx.createOscillator(),g=ctx.createGain(),p=ctx.createStereoPanner();o.type='sine';o.frequency.value=440*Math.pow(2,(midi-69)/12);p.pan.value=(rand()-.5)*.6;
-  const duration=sineState.decay,amp=.22*velocity/Math.sqrt(count);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(amp,t+.004);g.gain.exponentialRampToValueAtTime(.00001,t+duration);g.gain.linearRampToValueAtTime(0,t+duration+.012);
-  o.connect(g).connect(p).connect(sineBus);const voice={o,g,p};sineVoices.add(voice);o.onended=()=>{o.disconnect();g.disconnect();p.disconnect();sineVoices.delete(voice)};o.start(t);o.stop(t+duration+.02);
+  initSineEffects();
+  const o=ctx.createOscillator(),g=ctx.createGain(),p=ctx.createStereoPanner();o.type='sine';o.frequency.value=440*Math.pow(2,(midi-69)/12);const spread=sineState.pan,panStart=(rand()*2-1)*spread,panEnd=clamp(panStart+(rand()*2-1)*spread*sineState.motion*1.5,-spread,spread);
+  const variation=sineState.variation,duration=clamp(sineState.decay*(1+(rand()*2-1)*variation*.7),.035,2),amp=.22*velocity*(1-variation*rand()*.55)/Math.sqrt(count);
+  p.pan.setValueAtTime(panStart,t);p.pan.linearRampToValueAtTime(panEnd,t+duration);
+  const tone=clamp(sineState.tone*(1+(rand()*2-1)*variation*.6),0,1);
+  if(tone>.001){const real=new Float32Array(5),imag=new Float32Array([0,1,tone*.32,tone*.17,tone*.07]);o.setPeriodicWave(ctx.createPeriodicWave(real,imag))}
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(amp,t+.004);g.gain.exponentialRampToValueAtTime(.00001,t+duration);g.gain.linearRampToValueAtTime(0,t+duration+.012);
+  o.connect(g).connect(p).connect(sineInput);const voice={o,g,p};sineVoices.add(voice);o.onended=()=>{o.disconnect();g.disconnect();p.disconnect();sineVoices.delete(voice)};o.start(t);o.stop(t+duration+.02);
 }
 function sineScheduler(now,horizon){
+  applySineEffects();
   if(!sineState.enabled){sineNext=now+.04;return}
   if(sineNext<now-.1)sineNext=now+.01;
   const beat=60/state.tempo,link=sineState.link,genre=grooveFocus==='auto'?groovePrimary:grooveFocus;
@@ -67,7 +94,7 @@ function sineScheduler(now,horizon){
   }
 }
 const sinePanel=document.createElement('section');sinePanel.className='sinePanel';sinePanel.id='sinePanel';sinePanel.setAttribute('aria-label','Sine synth laboratory');
-sinePanel.innerHTML=`<div class="sineHeading"><div><div class="sectionTitle">SINE PARTICLES / TEST LAB</div><p>短い音の粒と、曖昧な和音。サンプルの隙間にシンセを重ねる。</p></div><button id="sineToggle" class="on">SYNTH ON</button></div><div class="sineSelectors"><label>ルート音 <select id="sineRoot">${sineRoots.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</select></label><label>アルペジオ <select id="sineDirection"><option value="up">上昇</option><option value="down">下降</option><option value="updown" selected>往復</option><option value="random">ランダム</option></select></label><button id="sineNewChord">NEXT CHORD ↝</button></div><fieldset class="sinePool"><legend>コード候補（複数選択）</legend>${Object.keys(sineChords).map(k=>`<label><input type="checkbox" data-sine-chord="${k}"> ${k}</label>`).join('')}</fieldset><div class="sineControls">${Object.entries(sineKnobs).map(([id,c])=>`<div><label class="sineControlLabel" for="sine_${id}">${c[0]} <output id="sineValue_${id}" for="sine_${id}"></output></label><input id="sine_${id}" type="range" min="${c[1]}" max="${c[2]}" step="${c[3]}"></div>`).join('')}</div><div class="sineReadout"><strong id="sineNow">—</strong><span id="sineMode">READY</span></div><p class="sineHint">上部のPLAYで再生。割合は相対的な重みです（すべて0で休止）。約1小節ごとに鳴り方を選びます。連動度0%は自由な間隔、100%はテンポとジャンルの傾向に沿います。RHYTHM OFFでも再生できます。設定は自動保存され、SAVE 1にも含まれます。</p>`;
+sinePanel.innerHTML=`<div class="sineHeading"><div><div class="sectionTitle">SINE PARTICLES / TEST LAB</div><p>短い音の粒と、曖昧な和音。サンプルの隙間にシンセを重ねる。</p></div><button id="sineToggle" class="on">SYNTH ON</button></div><div class="sineSelectors"><label>ルート音 <select id="sineRoot">${sineRoots.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</select></label><label>アルペジオ <select id="sineDirection"><option value="up">上昇</option><option value="down">下降</option><option value="updown" selected>往復</option><option value="random">ランダム</option></select></label><button id="sineNewChord">NEXT CHORD ↝</button></div><fieldset class="sinePool"><legend>コード候補（複数選択）</legend>${Object.keys(sineChords).map(k=>`<label><input type="checkbox" data-sine-chord="${k}"> ${k}</label>`).join('')}</fieldset><div class="sineControls">${Object.entries(sineKnobs).map(([id,c])=>`<div><label class="sineControlLabel" for="sine_${id}">${c[0]} <output id="sineValue_${id}" for="sine_${id}"></output></label><input id="sine_${id}" type="range" min="${c[1]}" max="${c[2]}" step="${c[3]}"></div>`).join('')}</div><div class="sineReadout"><strong id="sineNow">—</strong><span id="sineMode">READY</span></div><p class="sineHint">リバーブとディレイはシンセ専用。左右の広がりでランダムパンの範囲、パンの動きで音の途中の移動量を調整。倍音の量0%で純粋なサイン波、粒ごとの変化0%で音の長さ・音色・強さの揺らぎを抑えます。ディレイ間隔はテンポに追従します。上部のPLAYで再生。割合は相対的な重みです（すべて0で休止）。約1小節ごとに鳴り方を選びます。連動度0%は自由な間隔、100%はテンポとジャンルの傾向に沿います。RHYTHM OFFでも再生できます。設定は自動保存され、SAVE 1にも含まれます。</p>`;
 document.querySelector('.grid').before(sinePanel);
 for(const id of Object.keys(sineKnobs))$('#sine_'+id).addEventListener('input',e=>{sineState[id]=Number(e.target.value);if(['octave','range','bars'].includes(id))resetSine();syncSine();saveSine()});
 $('#sineToggle').onclick=()=>{sineState.enabled=!sineState.enabled;resetSine();syncSine();saveSine()};
