@@ -453,3 +453,10 @@ button{font-size:12px}
 .levelOverviewItem .mixerMeter{margin-top:6px}
 @media(max-width:850px){.levelOverview{padding:10px 14px 12px}.levelOverviewGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.levelOverviewHead span:last-child{display:none}}
 @media(max-width:640px){.levelOverviewGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.levelOverviewItem{padding:7px}.levelOverviewItem .label{font-size:8px}.levelOverviewItem .value{font-size:8px;min-width:auto}.levelOverviewItem .lock{font-size:6px;min-width:30px;padding:2px 4px}}
+
+@media(max-width:640px) and (orientation:portrait){
+  header .sub{display:none}
+  header{padding-bottom:10px}
+  .visual{height:96px}
+  .visualInfo{top:8px;left:10px;font-size:7px}
+}
