@@ -3,13 +3,8 @@ function stop(){if(!ctx)return;running=false;$('#play').textContent='PLAY';$('#l
 $('#play').onclick=()=>running?stop():start();
 
 // ---------- Daily Tracks / 3 per day ----------
-let dailyBatchRunning=false,dailyCancelRequested=false,dailyActiveRecorder=null,dailyUrls=[];
-function dailyMime(){
-  if(typeof MediaRecorder==='undefined')return '';
-  const types=['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg;codecs=opus'];
-  return types.find(t=>MediaRecorder.isTypeSupported?.(t))||'';
-}
-function dailyExt(type){if(/mp4/i.test(type))return 'm4a';if(/ogg/i.test(type))return 'ogg';return 'webm'}
+let dailyBatchRunning=false,dailyCancelRequested=false,dailyCapture=null,dailyUrls=[];
+
 function dailyDateStamp(){
   const d=new Date(),p=n=>String(n).padStart(2,'0');
   return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
@@ -17,63 +12,96 @@ function dailyDateStamp(){
 function dailySnapshot(label,duration){
   return {
     createdAt:new Date().toISOString(),label,durationSeconds:duration,
+    audioFormat:{container:'WAV',encoding:'IEEE_FLOAT',bitDepth:32,sampleRate:ctx?.sampleRate||null,channels:2},
     ambient:{...state},rhythm:{...rhythmState},mixer:{...mixerState},
     groove:{focus:grooveFocus,primary:groovePrimary,secondary:grooveSecondary,blend:grooveBlendAmount,division:currentDivision},
     randomWalk:evolving
   };
 }
+function concatFloat32(parts,total){
+  const out=new Float32Array(total);let off=0;
+  for(const p of parts){out.set(p,off);off+=p.length}
+  return out;
+}
+function writeAscii(view,off,s){for(let i=0;i<s.length;i++)view.setUint8(off+i,s.charCodeAt(i))}
+function encodeFloat32Wav(left,right,sampleRate){
+  const frames=Math.min(left.length,right.length),channels=2,bits=32,bytesPerSample=4;
+  const dataBytes=frames*channels*bytesPerSample;
+  const ab=new ArrayBuffer(44+dataBytes),v=new DataView(ab);
+  writeAscii(v,0,'RIFF');v.setUint32(4,36+dataBytes,true);writeAscii(v,8,'WAVE');
+  writeAscii(v,12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,3,true);
+  v.setUint16(22,channels,true);v.setUint32(24,sampleRate,true);
+  v.setUint32(28,sampleRate*channels*bytesPerSample,true);
+  v.setUint16(32,channels*bytesPerSample,true);v.setUint16(34,bits,true);
+  writeAscii(v,36,'data');v.setUint32(40,dataBytes,true);
+  let o=44;
+  for(let i=0;i<frames;i++){v.setFloat32(o,left[i],true);o+=4;v.setFloat32(o,right[i],true);o+=4}
+  return new Blob([ab],{type:'audio/wav'});
+}
+function beginDailyPcmCapture(){
+  if(!ctx||!master)throw new Error('Audio engine is not ready');
+  const node=ctx.createScriptProcessor(4096,2,2),sink=ctx.createGain();
+  sink.gain.value=0;
+  const left=[],right=[];let total=0;
+  node.onaudioprocess=e=>{
+    if(!dailyCapture||dailyCapture.node!==node)return;
+    const l=e.inputBuffer.getChannelData(0),r=e.inputBuffer.numberOfChannels>1?e.inputBuffer.getChannelData(1):l;
+    left.push(new Float32Array(l));right.push(new Float32Array(r));total+=l.length;
+  };
+  master.connect(node);node.connect(sink);sink.connect(ctx.destination);
+  dailyCapture={node,sink,left,right,get total(){return total}};
+}
+function endDailyPcmCapture(){
+  const cap=dailyCapture;if(!cap)return null;dailyCapture=null;
+  try{cap.node.onaudioprocess=null;master.disconnect(cap.node);cap.node.disconnect();cap.sink.disconnect()}catch(e){}
+  const l=concatFloat32(cap.left,cap.total),r=concatFloat32(cap.right,cap.total);
+  return encodeFloat32Wav(l,r,ctx.sampleRate);
+}
 function dailyRenderResult(label,blob,meta){
   const root=$('#dailyResults');if(!root)return;
-  const type=blob.type||'audio/webm',ext=dailyExt(type),url=URL.createObjectURL(blob);dailyUrls.push(url);
+  const url=URL.createObjectURL(blob);dailyUrls.push(url);
   const stamp=dailyDateStamp(),secs=Math.round(meta.durationSeconds),m=Math.floor(secs/60),s=String(secs%60).padStart(2,'0');
-  const audioName=stamp+'_'+label+'_'+m+'m'+s+'s.'+ext;
+  const sr=Math.round((meta.audioFormat.sampleRate||0)/1000);
+  const audioName=stamp+'_'+label+'_'+m+'m'+s+'s_'+sr+'k_32float.wav';
   const jsonBlob=new Blob([JSON.stringify(meta,null,2)],{type:'application/json'});
   const jsonUrl=URL.createObjectURL(jsonBlob);dailyUrls.push(jsonUrl);
   const card=document.createElement('div');card.className='dailyResult';
-  const a=document.createElement('a');a.href=url;a.download=audioName;a.textContent=label+' AUDIO';
+  const a=document.createElement('a');a.href=url;a.download=audioName;a.textContent=label+' WAV';
   const j=document.createElement('a');j.href=jsonUrl;j.download=stamp+'_'+label+'_params.json';j.textContent='PARAMS';
-  const t=document.createElement('span');t.textContent=m+':'+s;
+  const t=document.createElement('span');t.textContent=m+':'+s+' · '+sr+'k/32f';
   card.append(a,j,t);root.appendChild(card);
 }
 async function dailyRecordOne(label,index){
   if(dailyCancelRequested)return false;
   if(!running)await start();
-  if(!ctx||!recordDest)throw new Error('Recorder output is unavailable');
+  if(!ctx||!master)throw new Error('Audio engine is unavailable');
   if(label==='A'&&rhythmOn)toggleRhythm();
   if(label!=='A'&&!rhythmOn)toggleRhythm();
   if(label!=='A')newGroove(true);
   allRandomMorph();
   const duration=Math.round(120+rand()*60);
-  const mime=dailyMime();
-  const opts=mime?{mimeType:mime,audioBitsPerSecond:192000}:{audioBitsPerSecond:192000};
-  const chunks=[];
-  const rec=new MediaRecorder(recordDest.stream,opts);dailyActiveRecorder=rec;
-  rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
-  const done=new Promise((resolve,reject)=>{rec.onstop=resolve;rec.onerror=e=>reject(e.error||e)});
-  rec.start(1000);
+  beginDailyPcmCapture();
   const started=Date.now(),status=$('#dailyStatus');
   while((Date.now()-started)<duration*1000&&!dailyCancelRequested){
     const elapsed=Math.floor((Date.now()-started)/1000),left=Math.max(0,duration-elapsed);
-    if(status)status.textContent='TRACK '+label+' / 3 — recording · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' remaining';
+    if(status)status.textContent='TRACK '+label+' / 3 — WAV '+Math.round(ctx.sampleRate/1000)+'kHz / 32-bit float · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' remaining';
     await new Promise(r=>setTimeout(r,1000));
   }
-  if(rec.state!=='inactive')rec.stop();await done;dailyActiveRecorder=null;
-  if(dailyCancelRequested)return false;
-  const blob=new Blob(chunks,{type:rec.mimeType||mime||'audio/webm'});
+  const blob=endDailyPcmCapture();
+  if(dailyCancelRequested||!blob)return false;
   dailyRenderResult(label,blob,dailySnapshot(label,duration));
   return true;
 }
 async function runDaily3(){
   if(dailyBatchRunning)return;
-  if(typeof MediaRecorder==='undefined'){const s=$('#dailyStatus');if(s)s.textContent='RECORDING NOT SUPPORTED IN THIS BROWSER';return}
   dailyBatchRunning=true;dailyCancelRequested=false;
   dailyUrls.forEach(u=>URL.revokeObjectURL(u));dailyUrls=[];const root=$('#dailyResults');if(root)root.innerHTML='';
   const go=$('#daily3'),cancel=$('#dailyCancel');if(go)go.disabled=true;if(cancel)cancel.disabled=false;
   try{
     const labels=['A','B','C'];
     for(let i=0;i<labels.length;i++){if(!(await dailyRecordOne(labels[i],i)))break}
-    if(!dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent='TODAY\'S 3 TRACKS READY — download audio + parameter snapshots'}
-  }catch(e){console.error('daily tracks',e);const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACK ERROR — '+(e?.message||e)}
+    if(!dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent='TODAY\'S 3 TRACKS READY — lossless WAV + parameter snapshots'}
+  }catch(e){console.error('daily tracks',e);if(dailyCapture)endDailyPcmCapture();const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACK ERROR — '+(e?.message||e)}
   finally{
     dailyBatchRunning=false;if(go)go.disabled=false;if(cancel)cancel.disabled=true;
     if(running)stop();
@@ -81,8 +109,7 @@ async function runDaily3(){
   }
 }
 $('#daily3')?.addEventListener('click',runDaily3);
-$('#dailyCancel')?.addEventListener('click',()=>{dailyCancelRequested=true;if(dailyActiveRecorder&&dailyActiveRecorder.state!=='inactive')dailyActiveRecorder.stop()});
-
+$('#dailyCancel')?.addEventListener('click',()=>{dailyCancelRequested=true;if(dailyCapture)endDailyPcmCapture()});
 
 // ---------- random morph ----------
 function randomValue(c,range=null){let lo=range?.min??c.rmin??c.min,hi=range?.max??c.rmax??c.max;if(hi<lo)[lo,hi]=[hi,lo];if(c.scale==='log'){lo=Math.max(c.min,lo);hi=Math.max(lo,hi);const a=Math.log(lo),b=Math.log(hi);return Math.exp(a+rand()*(b-a))}return lo+rand()*(hi-lo)}
