@@ -134,7 +134,7 @@ function dailyNoveltyScore(character,audio){
 function dailySnapshot(label,duration){
   return {
     createdAt:new Date().toISOString(),label,durationSeconds:duration,
-    audioFormat:{container:'WAV',encoding:'IEEE_FLOAT',bitDepth:32,sampleRate:ctx?.sampleRate||null,channels:2},character:dailyCurrentCharacter,
+    audioFormat:{container:'WAV',encoding:'PCM',bitDepth:16,sampleRate:44100,channels:2},character:dailyCurrentCharacter,
     ambient:{...state},rhythm:{...rhythmState},mixer:{...mixerState},
     groove:{focus:grooveFocus,primary:groovePrimary,secondary:grooveSecondary,blend:grooveBlendAmount,division:currentDivision},
     randomWalk:evolving
@@ -146,83 +146,96 @@ function concatFloat32(parts,total){
   return out;
 }
 function writeAscii(view,off,s){for(let i=0;i<s.length;i++)view.setUint8(off+i,s.charCodeAt(i))}
-function encodeFloat32Wav(left,right,sampleRate){
-  const frames=Math.min(left.length,right.length),channels=2,bits=32,bytesPerSample=4;
-  const dataBytes=frames*channels*bytesPerSample;
+function resampleLinearStereo(left,right,fromRate,toRate=44100){
+  if(fromRate===toRate)return {left,right};
+  const outLen=Math.max(1,Math.round(left.length*toRate/fromRate)),l=new Float32Array(outLen),r=new Float32Array(outLen),ratio=fromRate/toRate;
+  for(let i=0;i<outLen;i++){const p=i*ratio,j=Math.floor(p),f=p-j,j2=Math.min(left.length-1,j+1);l[i]=left[j]*(1-f)+left[j2]*f;r[i]=right[j]*(1-f)+right[j2]*f}
+  return {left:l,right:r};
+}
+function encodePcm16Wav(left,right,sampleRate=44100){
+  const frames=Math.min(left.length,right.length),channels=2,bits=16,bytesPerSample=2,dataBytes=frames*channels*bytesPerSample;
   const ab=new ArrayBuffer(44+dataBytes),v=new DataView(ab);
-  writeAscii(v,0,'RIFF');v.setUint32(4,36+dataBytes,true);writeAscii(v,8,'WAVE');
-  writeAscii(v,12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,3,true);
-  v.setUint16(22,channels,true);v.setUint32(24,sampleRate,true);
-  v.setUint32(28,sampleRate*channels*bytesPerSample,true);
-  v.setUint16(32,channels*bytesPerSample,true);v.setUint16(34,bits,true);
+  writeAscii(v,0,'RIFF');v.setUint32(4,36+dataBytes,true);writeAscii(v,8,'WAVE');writeAscii(v,12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,channels,true);v.setUint32(24,sampleRate,true);
+  v.setUint32(28,sampleRate*channels*bytesPerSample,true);v.setUint16(32,channels*bytesPerSample,true);v.setUint16(34,bits,true);
   writeAscii(v,36,'data');v.setUint32(40,dataBytes,true);
-  let o=44;
-  for(let i=0;i<frames;i++){v.setFloat32(o,left[i],true);o+=4;v.setFloat32(o,right[i],true);o+=4}
+  let o=44;const q=x=>{const d=(Math.random()+Math.random()-1)/65536,y=clamp(x+d,-1,1);return y<0?Math.round(y*32768):Math.round(y*32767)};
+  for(let i=0;i<frames;i++){v.setInt16(o,q(left[i]),true);o+=2;v.setInt16(o,q(right[i]),true);o+=2}
   return new Blob([ab],{type:'audio/wav'});
 }
 function beginDailyPcmCapture(){
   if(!ctx||!master)throw new Error('Audio engine is not ready');
-  const node=ctx.createScriptProcessor(4096,2,2),sink=ctx.createGain();
-  sink.gain.value=0;
+  const node=ctx.createScriptProcessor(4096,2,2),sink=ctx.createGain();sink.gain.value=0;
   const left=[],right=[];let total=0;
   node.onaudioprocess=e=>{
     if(!dailyCapture||dailyCapture.node!==node)return;
     const l=e.inputBuffer.getChannelData(0),r=e.inputBuffer.numberOfChannels>1?e.inputBuffer.getChannelData(1):l;
     left.push(new Float32Array(l));right.push(new Float32Array(r));total+=l.length;
   };
-  master.connect(node);node.connect(sink);sink.connect(ctx.destination);
-  dailyCapture={node,sink,left,right,get total(){return total}};
+  master.connect(node);node.connect(sink);sink.connect(ctx.destination);dailyCapture={node,sink,left,right,get total(){return total}};
 }
 function endDailyPcmCapture(){
   const cap=dailyCapture;if(!cap)return null;dailyCapture=null;
   try{cap.node.onaudioprocess=null;master.disconnect(cap.node);cap.node.disconnect();cap.sink.disconnect()}catch(e){}
-  const l=concatFloat32(cap.left,cap.total),r=concatFloat32(cap.right,cap.total);
-  return encodeFloat32Wav(l,r,ctx.sampleRate);
+  const left=concatFloat32(cap.left,cap.total),right=concatFloat32(cap.right,cap.total),audio=dailyAudioFingerprint(left,right);
+  const rs=resampleLinearStereo(left,right,ctx.sampleRate,44100),blob=encodePcm16Wav(rs.left,rs.right,44100);
+  return {blob,audio};
 }
 function dailyRenderResult(label,blob,meta){
   const root=$('#dailyResults');if(!root)return;
   const url=URL.createObjectURL(blob);dailyUrls.push(url);
   const stamp=dailyDateStamp(),secs=Math.round(meta.durationSeconds),m=Math.floor(secs/60),s=String(secs%60).padStart(2,'0');
-  const sr=Math.round((meta.audioFormat.sampleRate||0)/1000);
-  const audioName=stamp+'_'+label+'_'+m+'m'+s+'s_'+sr+'k_32float.wav';
+  const sr=44.1;
+  const audioName=stamp+'_'+label+'_'+m+'m'+s+'s_44k1_16bit.wav';
   const jsonBlob=new Blob([JSON.stringify(meta,null,2)],{type:'application/json'});
   const jsonUrl=URL.createObjectURL(jsonBlob);dailyUrls.push(jsonUrl);
   const card=document.createElement('div');card.className='dailyResult';
   const a=document.createElement('a');a.href=url;a.download=audioName;a.textContent=label+' WAV';
   const j=document.createElement('a');j.href=jsonUrl;j.download=stamp+'_'+label+'_params.json';j.textContent='PARAMS';
-  const t=document.createElement('span');t.textContent=m+':'+s+' · '+sr+'k/32f';
+  const t=document.createElement('span');t.textContent=m+':'+s+' · 44.1k/16bit';
   card.append(a,j,t);root.appendChild(card);
 }
 async function dailyRecordOne(label,index){
   if(dailyCancelRequested)return false;
   if(!running)await start();
   if(!ctx||!master)throw new Error('Audio engine is unavailable');
-  const picked=dailyChooseCharacter();dailyCurrentCharacter=picked.fingerprint;dailyRememberCharacter(picked.fingerprint);dailyApplyCharacter(picked.candidate);
-  const duration=Math.round(120+rand()*40);
-  beginDailyPcmCapture();
-  const started=Date.now(),status=$('#dailyStatus');let nextSceneAt=8+rand()*12,scene=1;
-  while((Date.now()-started)<duration*1000&&!dailyCancelRequested){
-    const elapsed=Math.floor((Date.now()-started)/1000),left=Math.max(0,duration-elapsed);
-    if(elapsed>=nextSceneAt){
-      allRandomMorph();dailyForceSourceChange();if(rand()<.68)newGroove(true);scene++;nextSceneAt+=8+rand()*12;
+  const maxAttempts=4,noveltyThreshold=.115;let best=null;
+  for(let attempt=1;attempt<=maxAttempts&&!dailyCancelRequested;attempt++){
+    const picked=dailyChooseCharacter();dailyCurrentCharacter=picked.fingerprint;dailyApplyCharacter(picked.candidate);
+    const duration=Math.round(120+rand()*40);beginDailyPcmCapture();
+    const started=Date.now(),status=$('#dailyStatus');let nextSceneAt=8+rand()*12,scene=1;
+    while((Date.now()-started)<duration*1000&&!dailyCancelRequested){
+      const elapsed=Math.floor((Date.now()-started)/1000),left=Math.max(0,duration-elapsed);
+      if(elapsed>=nextSceneAt){allRandomMorph();dailyForceSourceChange();if(rand()<.68)newGroove(true);scene++;nextSceneAt+=8+rand()*12}
+      if(status)status.textContent='TRACK '+label+' / 3 — attempt '+attempt+' · scene '+scene+' · novelty archive '+dailyNoveltyArchive.length+' · 44.1kHz/16bit WAV · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+      await new Promise(r=>setTimeout(r,1000));
     }
-    if(status)status.textContent='TRACK '+label+' / 3 — scene '+scene+' · memory-aware random · WAV '+Math.round(ctx.sampleRate/1000)+'kHz / 32-bit float · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' remaining';
-    await new Promise(r=>setTimeout(r,1000));
+    const captured=endDailyPcmCapture();flushPhraseMemory();if(dailyCancelRequested||!captured)return false;
+    const novelty=dailyNoveltyScore(dailyCurrentCharacter,captured.audio);
+    const meta=dailySnapshot(label,duration);meta.audioFingerprint=captured.audio;meta.noveltyScore=novelty;meta.noveltyThreshold=noveltyThreshold;meta.attempt=attempt;
+    const entry={createdAt:new Date().toISOString(),label,character:dailyCurrentCharacter,audio:captured.audio,noveltyScore:novelty,accepted:novelty>=noveltyThreshold||!dailyNoveltyArchive.length};
+    if(!best||novelty>best.novelty)best={blob:captured.blob,meta,novelty,entry};
+    await addDailyNoveltyEntry(entry);
+    if(entry.accepted){dailyRememberCharacter(dailyCurrentCharacter);dailyRenderResult(label,captured.blob,meta);return true}
+    if(status)status.textContent='TRACK '+label+' — too similar ('+novelty.toFixed(3)+'), regenerating…';
+    dailyForceSourceChange();newGroove(true);allRandomMorph();await new Promise(r=>setTimeout(r,800));
   }
-  const blob=endDailyPcmCapture();flushPhraseMemory();
-  if(dailyCancelRequested||!blob)return false;
-  dailyRenderResult(label,blob,dailySnapshot(label,duration));
-  return true;
+  if(best){
+    best.meta.noveltyOverride=true;dailyRememberCharacter(best.meta.character);dailyRenderResult(label,best.blob,best.meta);
+    const status=$('#dailyStatus');if(status)status.textContent='TRACK '+label+' — strongest available variation kept after '+maxAttempts+' attempts';
+    return true;
+  }
+  return false;
 }
 async function runDaily3(){
   if(dailyBatchRunning)return;
-  dailyBatchRunning=true;dailyCancelRequested=false;dailyVarietyMode=true;dailyRecentSamples.length=0;
+  dailyBatchRunning=true;dailyCancelRequested=false;dailyVarietyMode=true;dailyRecentSamples.length=0;await loadDailyNoveltyArchive();
   dailyUrls.forEach(u=>URL.revokeObjectURL(u));dailyUrls=[];const root=$('#dailyResults');if(root)root.innerHTML='';
   const go=$('#daily3'),cancel=$('#dailyCancel');if(go)go.disabled=true;if(cancel)cancel.disabled=false;
   try{
     const labels=['A','B','C'];
     for(let i=0;i<labels.length;i++){if(!(await dailyRecordOne(labels[i],i)))break}
-    if(!dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent='TODAY\'S 3 TRACKS READY — lossless WAV + parameter snapshots'}
+    if(!dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent='TODAY\'S 3 TRACKS READY — novelty-checked 44.1kHz / 16bit WAV'}
   }catch(e){console.error('daily tracks',e);if(dailyCapture)endDailyPcmCapture();const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACK ERROR — '+(e?.message||e)}
   finally{
     dailyBatchRunning=false;dailyVarietyMode=false;flushPhraseMemory();if(go)go.disabled=false;if(cancel)cancel.disabled=true;
