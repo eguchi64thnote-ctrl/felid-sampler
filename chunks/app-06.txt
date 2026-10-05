@@ -7,21 +7,45 @@ function materialPlayable(m){return m&&m.enabled&&m.sampleIndices.some(i=>buffer
 function groupPlayable(g){return g&&g.active&&[...MATERIALS.values()].some(m=>m.groupId===g.id&&materialPlayable(m))}
 function indexPlayable(i){const d=SAMPLE_DATA[i],m=d&&MATERIALS.get(d.materialId),g=m&&GROUPS.get(m.groupId);return !!(buffers[i]&&m&&g&&m.enabled&&g.active&&!d.disabled)}
 function weightedGroup(){const arr=[...GROUPS.values()].filter(groupPlayable);if(!arr.length)return null;let total=arr.reduce((a,g)=>a+Math.max(.01,g.weight||1),0),r=rand()*total;for(const g of arr){r-=Math.max(.01,g.weight||1);if(r<=0)return g}return arr[arr.length-1]}
-function freshSample(){const g=weightedGroup();if(!g)return -1;const mats=[...MATERIALS.values()].filter(m=>m.groupId===g.id&&materialPlayable(m));if(!mats.length)return -1;const m=mats[Math.floor(rand()*mats.length)];const idx=m.sampleIndices.filter(i=>buffers[i]&&!SAMPLE_DATA[i]?.disabled);return idx.length?idx[Math.floor(rand()*idx.length)]:-1}
-function chooseSample(L){const cont=.14+.84*state.continuity;if(L.sample>=0&&indexPlayable(L.sample)&&rand()<cont){
-    if(rand()<state.drift*.12){const mid=SAMPLE_DATA[L.sample].materialId,m=MATERIALS.get(mid);if(m){const sib=m.sampleIndices.filter(i=>indexPlayable(i));if(sib.length)L.sample=sib[Math.floor(rand()*sib.length)]}}
-    return L.sample;
+let dailyVarietyMode=false;
+const dailyRecentSamples=[];
+function rememberDailySample(i){if(i<0)return;dailyRecentSamples.push(i);if(dailyRecentSamples.length>8)dailyRecentSamples.shift()}
+function freshSample(){const g=weightedGroup();if(!g)return -1;const mats=[...MATERIALS.values()].filter(m=>m.groupId===g.id&&materialPlayable(m));if(!mats.length)return -1;
+  let pool=[];for(const m of mats)for(const i of m.sampleIndices)if(buffers[i]&&!SAMPLE_DATA[i]?.disabled)pool.push(i);if(!pool.length)return -1;
+  if(dailyVarietyMode){const newer=pool.filter(i=>!dailyRecentSamples.includes(i));if(newer.length)pool=newer}
+  return pool[Math.floor(rand()*pool.length)];
+}
+function chooseSample(L){const cont=dailyVarietyMode?Math.min(.70,.10+.62*state.continuity):(.14+.84*state.continuity);if(L.sample>=0&&indexPlayable(L.sample)&&rand()<cont){
+    if(rand()<state.drift*(dailyVarietyMode?.26:.12)){const mid=SAMPLE_DATA[L.sample].materialId,m=MATERIALS.get(mid);if(m){const sib=m.sampleIndices.filter(i=>indexPlayable(i)&&(!dailyVarietyMode||!dailyRecentSamples.includes(i)));if(sib.length)L.sample=sib[Math.floor(rand()*sib.length)]}}
+    rememberDailySample(L.sample);return L.sample;
   }
-  let pick=freshSample();if(pick<0)return -1;for(let tries=0;tries<8&&pick===L.sample;tries++)pick=freshSample();L.sample=pick;L.anchor=rand();return pick;
+  let pick=freshSample();if(pick<0)return -1;for(let tries=0;tries<12&&(pick===L.sample||(dailyVarietyMode&&dailyRecentSamples.includes(pick)));tries++)pick=freshSample();L.sample=pick;L.anchor=rand();rememberDailySample(pick);return pick;
 }
 function flashSource(i){const d=SAMPLE_DATA[i],m=d&&MATERIALS.get(d.materialId);if(!m)return;lastTrack=m.name;$('#lastSource').textContent=m.name;document.querySelectorAll('.materialRow').forEach(r=>r.classList.toggle('hit',r.dataset.material===m.id));setTimeout(()=>document.querySelectorAll('.materialRow.hit').forEach(r=>r.classList.remove('hit')),120)}
 function signature(i,off,dur,rate,pan){return i+'|'+Math.round(off*10000)+'|'+Math.round(dur*10000)+'|'+Math.round(rate*100000)+'|'+Math.round(pan*1000)}
 function rememberSig(s){if(recentSigs.has(s))return false;recentSigs.add(s);sigQueue.push(s);if(sigQueue.length>100000)recentSigs.delete(sigQueue.shift());return true}
+const phraseMemoryKey='felidPhraseMemoryV2';
+let phraseHistory=[];try{phraseHistory=JSON.parse(localStorage.getItem(phraseMemoryKey)||'[]');if(!Array.isArray(phraseHistory))phraseHistory=[]}catch(e){phraseHistory=[]}
+const phraseSet=new Set(phraseHistory);
+function coarsePhraseSignature(i,off,dur,rate,role='a'){
+  const semi=Math.round(12*Math.log2(Math.max(.001,rate)));
+  return role+'|'+i+'|'+Math.round(off/.38)+'|'+Math.round(dur/.28)+'|'+semi;
+}
+function rememberCoarsePhrase(s){
+  if(phraseSet.has(s))return false;
+  phraseSet.add(s);phraseHistory.push(s);
+  while(phraseHistory.length>1400){const old=phraseHistory.shift();phraseSet.delete(old)}
+  if(phraseHistory.length%24===0){try{localStorage.setItem(phraseMemoryKey,JSON.stringify(phraseHistory))}catch(e){}}
+  return true;
+}
+function flushPhraseMemory(){try{localStorage.setItem(phraseMemoryKey,JSON.stringify(phraseHistory))}catch(e){}}
+function dailyForceSourceChange(){for(const L of layers){if(rand()<.72){L.sample=-1;L.anchor=rand()}}dailyRecentSamples.splice(0,Math.max(0,dailyRecentSamples.length-2))}
 function scheduleGrain(L,when){const i=chooseSample(L);if(i<0)return;const b=buffers[i],m=SAMPLE_DATA[i];const id=++eventId;const phi=fract(id*.6180339887498949),psi=fract(id*.7548776662466927);
   const pitchAmt=state.pitch;let semis=clamp(gauss()*.42*pitchAmt,-pitchAmt,pitchAmt);semis+=(phi-.5)*.004;const rate=Math.pow(2,semis/12);
   const desired=clamp(state.grain*L.dur*(.55+rand()*.9),.045,13.0);let bufDur=desired*rate;bufDur=Math.min(bufDur,b.duration-.01);if(bufDur<=.02)return;
   if(rand()>state.continuity){L.anchor=rand()}else{L.anchor=fract(L.anchor+(gauss()*.018+(.003+phi*.003))*state.drift)}
   let off=clamp(L.anchor*Math.max(.001,b.duration-bufDur),0,Math.max(0,b.duration-bufDur));off=clamp(off+(psi-.5)*.00045,0,Math.max(0,b.duration-bufDur));
+  if(dailyVarietyMode){let coarse=coarsePhraseSignature(i,off,bufDur,rate,'a'),tries=0;while(phraseSet.has(coarse)&&tries++<14){L.anchor=rand();off=clamp(L.anchor*Math.max(.001,b.duration-bufDur),0,Math.max(0,b.duration-bufDur));coarse=coarsePhraseSignature(i,off,bufDur,rate,'a')}rememberCoarsePhrase(coarse)}
   let pan=clamp((gauss()*.55)*state.stereo,-1,1);let sig=signature(i,off,bufDur,rate,pan);if(!rememberSig(sig)){off=clamp(off+.00037+phi*.00031,0,Math.max(0,b.duration-bufDur));sig=signature(i,off,bufDur,rate,pan);rememberSig(sig)}
   const src=ctx.createBufferSource();src.buffer=b;src.playbackRate.value=rate;
   const f=ctx.createBiquadFilter();f.type='lowpass';f.Q.value=state.resonance;f.frequency.value=clamp(state.cutoff*Math.pow(2,gauss()*.11*state.drift),120,20000);
