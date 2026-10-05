@@ -2,6 +2,88 @@
 function stop(){if(!ctx)return;running=false;$('#play').textContent='PLAY';$('#liveDot').classList.remove('live');$('#status').textContent='STOPPED';applyGlobals();releaseScreenWakeLock();syncMobileDock()}
 $('#play').onclick=()=>running?stop():start();
 
+// ---------- Daily Tracks / 3 per day ----------
+let dailyBatchRunning=false,dailyCancelRequested=false,dailyActiveRecorder=null,dailyUrls=[];
+function dailyMime(){
+  if(typeof MediaRecorder==='undefined')return '';
+  const types=['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg;codecs=opus'];
+  return types.find(t=>MediaRecorder.isTypeSupported?.(t))||'';
+}
+function dailyExt(type){if(/mp4/i.test(type))return 'm4a';if(/ogg/i.test(type))return 'ogg';return 'webm'}
+function dailyDateStamp(){
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+function dailySnapshot(label,duration){
+  return {
+    createdAt:new Date().toISOString(),label,durationSeconds:duration,
+    ambient:{...state},rhythm:{...rhythmState},mixer:{...mixerState},
+    groove:{focus:grooveFocus,primary:groovePrimary,secondary:grooveSecondary,blend:grooveBlendAmount,division:currentDivision},
+    randomWalk:evolving
+  };
+}
+function dailyRenderResult(label,blob,meta){
+  const root=$('#dailyResults');if(!root)return;
+  const type=blob.type||'audio/webm',ext=dailyExt(type),url=URL.createObjectURL(blob);dailyUrls.push(url);
+  const stamp=dailyDateStamp(),secs=Math.round(meta.durationSeconds),m=Math.floor(secs/60),s=String(secs%60).padStart(2,'0');
+  const audioName=stamp+'_'+label+'_'+m+'m'+s+'s.'+ext;
+  const jsonBlob=new Blob([JSON.stringify(meta,null,2)],{type:'application/json'});
+  const jsonUrl=URL.createObjectURL(jsonBlob);dailyUrls.push(jsonUrl);
+  const card=document.createElement('div');card.className='dailyResult';
+  const a=document.createElement('a');a.href=url;a.download=audioName;a.textContent=label+' AUDIO';
+  const j=document.createElement('a');j.href=jsonUrl;j.download=stamp+'_'+label+'_params.json';j.textContent='PARAMS';
+  const t=document.createElement('span');t.textContent=m+':'+s;
+  card.append(a,j,t);root.appendChild(card);
+}
+async function dailyRecordOne(label,index){
+  if(dailyCancelRequested)return false;
+  if(!running)await start();
+  if(!ctx||!recordDest)throw new Error('Recorder output is unavailable');
+  if(label==='A'&&rhythmOn)toggleRhythm();
+  if(label!=='A'&&!rhythmOn)toggleRhythm();
+  if(label!=='A')newGroove(true);
+  allRandomMorph();
+  const duration=Math.round(120+rand()*60);
+  const mime=dailyMime();
+  const opts=mime?{mimeType:mime,audioBitsPerSecond:192000}:{audioBitsPerSecond:192000};
+  const chunks=[];
+  const rec=new MediaRecorder(recordDest.stream,opts);dailyActiveRecorder=rec;
+  rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  const done=new Promise((resolve,reject)=>{rec.onstop=resolve;rec.onerror=e=>reject(e.error||e)});
+  rec.start(1000);
+  const started=Date.now(),status=$('#dailyStatus');
+  while((Date.now()-started)<duration*1000&&!dailyCancelRequested){
+    const elapsed=Math.floor((Date.now()-started)/1000),left=Math.max(0,duration-elapsed);
+    if(status)status.textContent='TRACK '+label+' / 3 — recording · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' remaining';
+    await new Promise(r=>setTimeout(r,1000));
+  }
+  if(rec.state!=='inactive')rec.stop();await done;dailyActiveRecorder=null;
+  if(dailyCancelRequested)return false;
+  const blob=new Blob(chunks,{type:rec.mimeType||mime||'audio/webm'});
+  dailyRenderResult(label,blob,dailySnapshot(label,duration));
+  return true;
+}
+async function runDaily3(){
+  if(dailyBatchRunning)return;
+  if(typeof MediaRecorder==='undefined'){const s=$('#dailyStatus');if(s)s.textContent='RECORDING NOT SUPPORTED IN THIS BROWSER';return}
+  dailyBatchRunning=true;dailyCancelRequested=false;
+  dailyUrls.forEach(u=>URL.revokeObjectURL(u));dailyUrls=[];const root=$('#dailyResults');if(root)root.innerHTML='';
+  const go=$('#daily3'),cancel=$('#dailyCancel');if(go)go.disabled=true;if(cancel)cancel.disabled=false;
+  try{
+    const labels=['A','B','C'];
+    for(let i=0;i<labels.length;i++){if(!(await dailyRecordOne(labels[i],i)))break}
+    if(!dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent='TODAY\'S 3 TRACKS READY — download audio + parameter snapshots'}
+  }catch(e){console.error('daily tracks',e);const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACK ERROR — '+(e?.message||e)}
+  finally{
+    dailyBatchRunning=false;if(go)go.disabled=false;if(cancel)cancel.disabled=true;
+    if(running)stop();
+    if(dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACKS CANCELLED'}
+  }
+}
+$('#daily3')?.addEventListener('click',runDaily3);
+$('#dailyCancel')?.addEventListener('click',()=>{dailyCancelRequested=true;if(dailyActiveRecorder&&dailyActiveRecorder.state!=='inactive')dailyActiveRecorder.stop()});
+
+
 // ---------- random morph ----------
 function randomValue(c,range=null){let lo=range?.min??c.rmin??c.min,hi=range?.max??c.rmax??c.max;if(hi<lo)[lo,hi]=[hi,lo];if(c.scale==='log'){lo=Math.max(c.min,lo);hi=Math.max(lo,hi);const a=Math.log(lo),b=Math.log(hi);return Math.exp(a+rand()*(b-a))}return lo+rand()*(hi-lo)}
 function randomMorph(){const targets={},starts={};for(const [id,c] of Object.entries(configs)){if(locked.has(id))continue;starts[id]=state[id];const range=randomRanges[id],raw=randomValue(c,range),depth=meta.depth;const n0=toNorm(state[id],c),n1=toNorm(raw,c);const proposed=fromNorm(clamp(n0+(n1-n0)*depth,0,1),c);targets[id]=clamp(proposed,range.min,range.max)}morphState={start:performance.now(),dur:meta.morph*1000,starts,targets};$('#status').textContent=running?'GENERATING / MORPHING':'MORPHING PARAMETERS'}
