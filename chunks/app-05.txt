@@ -5,7 +5,7 @@ function updateRhythmMorph(){if(rhythmMorphState){const t=clamp((performance.now
 $('#rhythmToggle').onclick=toggleRhythm;$('#rhythmRandom').onclick=rhythmRandomMorph;$('#newGroove').onclick=()=>newGroove(true);updateGrooveButtons();
 
 // ---------- audio ----------
-let ctx=null, master=null, compressor=null, analyser=null, dryGain=null, ambientBus=null, rhythmSampleBus=null, eightOhEightBus=null, rhythmDelaySend=null, rhythmReverbSend=null, delayNode=null, delayGain=null, feedbackGain=null, convolver=null, reverbGain=null, noiseBuffer=null;
+let ctx=null, master=null, compressor=null, analyser=null, recordDest=null, dryGain=null, ambientBus=null, rhythmSampleBus=null, eightOhEightBus=null, rhythmDelaySend=null, rhythmReverbSend=null, delayNode=null, delayGain=null, feedbackGain=null, convolver=null, reverbGain=null, noiseBuffer=null;
 const rhythmRoleBuses={kick:null,snare:null,hat:null,perc:null},e808RoleBuses={kick:null,snare:null,hat:null,perc:null,bass:null};
 let buffers=new Array(TOTAL).fill(null), decodedCount=0, decoding=false, running=false, scheduler=null, backgroundDecodeStarted=false;
 let eventId=0, evolving=true, lastTrack=null;
@@ -15,14 +15,14 @@ const recentSigs=new Set(), sigQueue=[];
 
 function makeImpulse(seconds=4.2,decay=3.1){const len=Math.floor(ctx.sampleRate*seconds),b=ctx.createBuffer(2,len,ctx.sampleRate);for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<len;i++){const x=1-i/len;d[i]=(rand()*2-1)*Math.pow(x,decay)}}return b}
 function makeNoise(seconds=1){const len=Math.floor(ctx.sampleRate*seconds),b=ctx.createBuffer(1,len,ctx.sampleRate),d=b.getChannelData(0);for(let i=0;i<len;i++)d[i]=rand()*2-1;return b}
-function initAudio(){if(ctx)return ctx;const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)throw new Error('Web Audio is not supported');ctx=new AudioCtx();
+function initAudio(){if(ctx)return ctx;const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)throw new Error('Web Audio is not supported');try{ctx=new AudioCtx({sampleRate:44100})}catch(e){ctx=new AudioCtx();}
   master=ctx.createGain();master.gain.value=0.0001;compressor=ctx.createDynamicsCompressor();compressor.threshold.value=-16;compressor.knee.value=18;compressor.ratio.value=4;compressor.attack.value=.006;compressor.release.value=.2;
-  analyser=ctx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.84;
+  analyser=ctx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.84;recordDest=ctx.createMediaStreamDestination();
   dryGain=ctx.createGain();ambientBus=ctx.createGain();rhythmSampleBus=ctx.createGain();eightOhEightBus=ctx.createGain();rhythmDelaySend=ctx.createGain();rhythmReverbSend=ctx.createGain();delayNode=ctx.createDelay(2.5);delayGain=ctx.createGain();feedbackGain=ctx.createGain();convolver=ctx.createConvolver();reverbGain=ctx.createGain();convolver.buffer=makeImpulse();noiseBuffer=makeNoise(1.2);
   ambientBus.connect(dryGain);ambientBus.connect(delayNode);ambientBus.connect(convolver);
   for(const role of ['kick','snare','hat','perc']){rhythmRoleBuses[role]=ctx.createGain();rhythmRoleBuses[role].connect(rhythmSampleBus);e808RoleBuses[role]=ctx.createGain();e808RoleBuses[role].connect(eightOhEightBus)}e808RoleBuses.bass=ctx.createGain();e808RoleBuses.bass.connect(eightOhEightBus);
   rhythmSampleBus.connect(dryGain);rhythmSampleBus.connect(rhythmDelaySend).connect(delayNode);rhythmSampleBus.connect(rhythmReverbSend).connect(convolver);eightOhEightBus.connect(dryGain);
-  dryGain.connect(compressor);delayNode.connect(delayGain).connect(compressor);delayNode.connect(feedbackGain).connect(delayNode);convolver.connect(reverbGain).connect(compressor);compressor.connect(master).connect(analyser).connect(ctx.destination);applyGlobals();return ctx;
+  dryGain.connect(compressor);delayNode.connect(delayGain).connect(compressor);delayNode.connect(feedbackGain).connect(delayNode);convolver.connect(reverbGain).connect(compressor);compressor.connect(master).connect(analyser).connect(ctx.destination);master.connect(recordDest);applyGlobals();return ctx;
 }
 function base64ToArrayBuffer(s){const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u.buffer}
 async function decodeOne(i){if(buffers[i])return true;const d=SAMPLE_DATA[i];if(!d)return false;try{let ab;if(d.data){ab=base64ToArrayBuffer(d.data);d.data=null}else if(d.url){const r=await fetch(d.url,{cache:'force-cache'});if(!r.ok)throw new Error('HTTP '+r.status+' '+d.url);ab=await r.arrayBuffer()}else{return false}buffers[i]=await ctx.decodeAudioData(ab);decodedCount++;updateLoadCount();return true}catch(e){console.error('decode',i,e);return false}}
