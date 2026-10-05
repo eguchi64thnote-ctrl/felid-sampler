@@ -174,12 +174,46 @@ function beginDailyPcmCapture(){
   };
   master.connect(node);node.connect(sink);sink.connect(ctx.destination);dailyCapture={node,sink,left,right,get total(){return total}};
 }
-function endDailyPcmCapture(){
+function takeDailyPcmCapture(){
   const cap=dailyCapture;if(!cap)return null;dailyCapture=null;
   try{cap.node.onaudioprocess=null;master.disconnect(cap.node);cap.node.disconnect();cap.sink.disconnect()}catch(e){}
-  const left=concatFloat32(cap.left,cap.total),right=concatFloat32(cap.right,cap.total),audio=dailyAudioFingerprint(left,right);
-  const rs=resampleLinearStereo(left,right,ctx.sampleRate,44100),blob=encodePcm16Wav(rs.left,rs.right,44100);
-  return {blob,audio};
+  return {left:concatFloat32(cap.left,cap.total),right:concatFloat32(cap.right,cap.total)};
+}
+function abortDailyPcmCapture(){takeDailyPcmCapture()}
+function estimateIntegratedLoudness(left,right,sampleRate){
+  const n=Math.min(left.length,right.length),block=Math.max(1,Math.round(sampleRate*.4)),hop=Math.max(1,Math.round(sampleRate*.1));
+  const energies=[];
+  for(let start=0;start+block<=n;start+=hop){
+    let sum=0;for(let i=start;i<start+block;i++){const l=left[i],r=right[i];sum+=l*l+r*r}
+    const e=sum/(block*2),lu=-.691+10*Math.log10(Math.max(1e-12,e));if(lu>-70)energies.push({e,lu});
+  }
+  if(!energies.length)return -70;
+  let mean=energies.reduce((a,b)=>a+b.e,0)/energies.length,pre=-.691+10*Math.log10(Math.max(1e-12,mean)),gate=Math.max(-70,pre-10);
+  const gated=energies.filter(x=>x.lu>=gate);if(!gated.length)return pre;
+  mean=gated.reduce((a,b)=>a+b.e,0)/gated.length;
+  return -.691+10*Math.log10(Math.max(1e-12,mean));
+}
+async function masterDailyAudio(left,right,sampleRate){
+  const target=-10,ceilingDb=-1,ceiling=Math.pow(10,ceilingDb/20),before=estimateIntegratedLoudness(left,right,sampleRate);
+  const gainDb=clamp(target-before,-12,12),gain=Math.pow(10,gainDb/20);
+  const length=Math.min(left.length,right.length),offline=new OfflineAudioContext(2,length,sampleRate),buf=offline.createBuffer(2,length,sampleRate);
+  buf.copyToChannel(left.subarray(0,length),0);buf.copyToChannel(right.subarray(0,length),1);
+  const src=offline.createBufferSource(),g=offline.createGain(),lim=offline.createDynamicsCompressor();
+  src.buffer=buf;g.gain.value=gain;
+  lim.threshold.value=-1.1;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=.002;lim.release.value=.09;
+  src.connect(g).connect(lim).connect(offline.destination);src.start();
+  const rendered=await offline.startRendering(),l=new Float32Array(rendered.getChannelData(0)),r=new Float32Array(rendered.getChannelData(1));
+  let peak=0;for(let i=0;i<length;i++)peak=Math.max(peak,Math.abs(l[i]),Math.abs(r[i]));
+  const trim=peak>ceiling?ceiling/peak:1;if(trim<1)for(let i=0;i<length;i++){l[i]*=trim;r[i]*=trim}
+  const after=estimateIntegratedLoudness(l,r,sampleRate);
+  return {left:l,right:r,mastering:{targetLUFS:target,ceilingDbTP:ceilingDb,inputLUFS:before,outputLUFS:after,appliedGainDb:gainDb,peakDbFS:20*Math.log10(Math.max(1e-9,peak*trim))}};
+}
+async function endDailyPcmCapture(){
+  const raw=takeDailyPcmCapture();if(!raw)return null;
+  const mastered=await masterDailyAudio(raw.left,raw.right,ctx.sampleRate);
+  const audio=dailyAudioFingerprint(mastered.left,mastered.right);
+  const rs=resampleLinearStereo(mastered.left,mastered.right,ctx.sampleRate,44100),blob=encodePcm16Wav(rs.left,rs.right,44100);
+  return {blob,audio,mastering:mastered.mastering};
 }
 function dailyRenderResult(label,blob,meta){
   const root=$('#dailyResults');if(!root)return;
@@ -207,12 +241,12 @@ async function dailyRecordOne(label,index){
     while((Date.now()-started)<duration*1000&&!dailyCancelRequested){
       const elapsed=Math.floor((Date.now()-started)/1000),left=Math.max(0,duration-elapsed);
       if(elapsed>=nextSceneAt){allRandomMorph();dailyForceSourceChange();if(rand()<.68)newGroove(true);scene++;nextSceneAt+=8+rand()*12}
-      if(status)status.textContent='TRACK '+label+' / 3 — attempt '+attempt+' · scene '+scene+' · novelty archive '+dailyNoveltyArchive.length+' · 44.1kHz/16bit WAV · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+      if(status)status.textContent='TRACK '+label+' / 3 — attempt '+attempt+' · scene '+scene+' · novelty archive '+dailyNoveltyArchive.length+' · MASTER -10 LUFS / -1 dB · 44.1kHz/16bit · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
       await new Promise(r=>setTimeout(r,1000));
     }
-    const captured=endDailyPcmCapture();flushPhraseMemory();if(dailyCancelRequested||!captured)return false;
+    const captured=await endDailyPcmCapture();flushPhraseMemory();if(dailyCancelRequested||!captured)return false;
     const novelty=dailyNoveltyScore(dailyCurrentCharacter,captured.audio);
-    const meta=dailySnapshot(label,duration);meta.audioFingerprint=captured.audio;meta.noveltyScore=novelty;meta.noveltyThreshold=noveltyThreshold;meta.attempt=attempt;
+    const meta=dailySnapshot(label,duration);meta.audioFingerprint=captured.audio;meta.mastering=captured.mastering;meta.noveltyScore=novelty;meta.noveltyThreshold=noveltyThreshold;meta.attempt=attempt;
     const entry={createdAt:new Date().toISOString(),label,character:dailyCurrentCharacter,audio:captured.audio,noveltyScore:novelty,accepted:novelty>=noveltyThreshold||!dailyNoveltyArchive.length};
     await addDailyNoveltyEntry(entry);
     if(entry.accepted){dailyRememberCharacter(dailyCurrentCharacter);dailyRenderResult(label,captured.blob,meta);return true}
@@ -231,7 +265,7 @@ async function runDaily3(){
     const labels=['A','B','C'];let completed=0;
     for(let i=0;i<labels.length;i++){if(!(await dailyRecordOne(labels[i],i)))break;completed++}
     if(!dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent=completed===3?'TODAY\'S 3 TRACKS READY — novelty-checked 44.1kHz / 16bit WAV':('NOVELTY GATE STOPPED — '+completed+'/3 tracks passed; run again for a new attempt')}
-  }catch(e){console.error('daily tracks',e);if(dailyCapture)endDailyPcmCapture();const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACK ERROR — '+(e?.message||e)}
+  }catch(e){console.error('daily tracks',e);if(dailyCapture)abortDailyPcmCapture();const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACK ERROR — '+(e?.message||e)}
   finally{
     dailyBatchRunning=false;dailyVarietyMode=false;flushPhraseMemory();if(go)go.disabled=false;if(cancel)cancel.disabled=true;
     if(running)stop();
@@ -239,7 +273,7 @@ async function runDaily3(){
   }
 }
 $('#daily3')?.addEventListener('click',runDaily3);
-$('#dailyCancel')?.addEventListener('click',()=>{dailyCancelRequested=true;if(dailyCapture)endDailyPcmCapture()});
+$('#dailyCancel')?.addEventListener('click',()=>{dailyCancelRequested=true;if(dailyCapture)abortDailyPcmCapture()});
 
 // ---------- random morph ----------
 function randomValue(c,range=null){let lo=range?.min??c.rmin??c.min,hi=range?.max??c.rmax??c.max;if(hi<lo)[lo,hi]=[hi,lo];if(c.scale==='log'){lo=Math.max(c.min,lo);hi=Math.max(lo,hi);const a=Math.log(lo),b=Math.log(hi);return Math.exp(a+rand()*(b-a))}return lo+rand()*(hi-lo)}
