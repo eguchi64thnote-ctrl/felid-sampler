@@ -16,7 +16,7 @@ function freshSample(){const g=weightedGroup();if(!g)return -1;const mats=[...MA
   return pool[Math.floor(rand()*pool.length)];
 }
 function chooseSample(L){const cont=dailyVarietyMode?Math.min(.70,.10+.62*state.continuity):(.14+.84*state.continuity);if(L.sample>=0&&indexPlayable(L.sample)&&rand()<cont){
-    if(rand()<state.drift*(dailyVarietyMode?.26:.12)){const mid=SAMPLE_DATA[L.sample].materialId,m=MATERIALS.get(mid);if(m){const sib=m.sampleIndices.filter(i=>indexPlayable(i)&&(!dailyVarietyMode||!dailyRecentSamples.includes(i)));if(sib.length)L.sample=sib[Math.floor(rand()*sib.length)]}}
+    if(rand()<state.drift*(dailyVarietyMode ? .26 : .12)){const mid=SAMPLE_DATA[L.sample].materialId,m=MATERIALS.get(mid);if(m){const sib=m.sampleIndices.filter(i=>indexPlayable(i)&&(!dailyVarietyMode||!dailyRecentSamples.includes(i)));if(sib.length)L.sample=sib[Math.floor(rand()*sib.length)]}}
     rememberDailySample(L.sample);return L.sample;
   }
   let pick=freshSample();if(pick<0)return -1;for(let tries=0;tries<12&&(pick===L.sample||(dailyVarietyMode&&dailyRecentSamples.includes(pick)));tries++)pick=freshSample();L.sample=pick;L.anchor=rand();rememberDailySample(pick);return pick;
