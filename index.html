@@ -45,6 +45,20 @@
   <span>LAST SOURCE <span id="lastSource" class="metric">—</span></span>
   <span><span id="rhythmPulse" class="rhythmPulse"></span>RHYTHM <span id="grooveStatus" class="metric">OFF</span></span>
 </div>
+<section class="dailyTrackPanel" aria-label="daily track generator">
+  <div class="dailyTrackHead">
+    <div>
+      <strong>DAILY TRACKS</strong>
+      <span>3 tracks / day · each 2:00–3:00</span>
+    </div>
+    <div class="dailyTrackActions">
+      <button id="daily3" class="dailyPrimary">GENERATE TODAY'S 3</button>
+      <button id="dailyCancel" disabled>CANCEL</button>
+    </div>
+  </div>
+  <div id="dailyStatus" class="dailyStatus">READY — A: ambient / B: rhythm / C: free</div>
+  <div id="dailyResults" class="dailyResults"></div>
+</section>
 <div class="visual"><canvas id="scope"></canvas><div class="visualInfo">LIVE SPECTRUM / MA / GENERATION STATE</div></div>
 <div class="grid">
   <section class="panel" id="enginePanel">
