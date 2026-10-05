@@ -3,8 +3,21 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const baseUrl = process.env.DAILY_BASE_URL || 'https://karesansui-in-the-air-gnr-mhver.vercel.app';
-const oidc = process.env.GITHUB_OIDC_TOKEN;
-if (!oidc) throw new Error('Missing GITHUB_OIDC_TOKEN');
+async function getFreshOidc() {
+  if (process.env.ACTIONS_ID_TOKEN_REQUEST_URL && process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN) {
+    const sep = process.env.ACTIONS_ID_TOKEN_REQUEST_URL.includes('?') ? '&' : '?';
+    const url = process.env.ACTIONS_ID_TOKEN_REQUEST_URL + sep + 'audience=felid-daily-tracks';
+    const res = await fetch(url, {
+      headers: { Authorization: 'bearer ' + process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN },
+    });
+    if (!res.ok) throw new Error('OIDC refresh failed: ' + res.status + ' ' + await res.text());
+    const data = await res.json();
+    if (!data.value) throw new Error('OIDC refresh returned no token');
+    return data.value;
+  }
+  if (process.env.GITHUB_OIDC_TOKEN) return process.env.GITHUB_OIDC_TOKEN;
+  throw new Error('Missing GitHub OIDC token source');
+}
 
 const outDir = path.resolve('daily-output');
 await mkdir(outDir, { recursive: true });
@@ -20,6 +33,7 @@ async function uploadFile(filePath, date) {
   const name = path.basename(filePath);
   const contentType = name.endsWith('.wav') ? 'audio/wav' : 'application/json';
   const pathname = 'daily/' + date + '/' + name;
+  const oidc = await getFreshOidc();
   const sign = await fetch(baseUrl + '/api/sign-upload', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
