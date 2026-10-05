@@ -471,3 +471,19 @@ button{font-size:12px}
     font-weight:700;
   }
 }
+
+/* Daily 3-track generator */
+.dailyTrackPanel{margin:10px 0 12px;border:1px solid #2b2b2b;background:#0d0d0d;padding:12px}
+.dailyTrackHead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dailyTrackHead>div:first-child{display:flex;flex-direction:column;gap:3px}
+.dailyTrackHead strong{font-size:12px;letter-spacing:.12em}
+.dailyTrackHead span,.dailyStatus{font-size:11px;color:#929292}
+.dailyTrackActions{display:flex;gap:7px;flex-wrap:wrap}
+.dailyTrackActions button{min-height:36px}
+.dailyPrimary{border-color:#7e9f69!important;color:#dff1d1!important}
+.dailyStatus{margin-top:9px;line-height:1.45}
+.dailyResults{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.dailyResult{display:flex;gap:6px;align-items:center;border:1px solid #292929;padding:6px 8px;font-size:11px}
+.dailyResult a{color:#d9efbf;text-decoration:none}
+.dailyResult a:hover{text-decoration:underline}
+@media(max-width:640px){.dailyTrackHead{align-items:flex-start;flex-direction:column}.dailyTrackActions{width:100%}.dailyTrackActions button{flex:1}}
