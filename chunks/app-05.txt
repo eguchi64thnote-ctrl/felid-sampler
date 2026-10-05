@@ -15,7 +15,7 @@ const recentSigs=new Set(), sigQueue=[];
 
 function makeImpulse(seconds=4.2,decay=3.1){const len=Math.floor(ctx.sampleRate*seconds),b=ctx.createBuffer(2,len,ctx.sampleRate);for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<len;i++){const x=1-i/len;d[i]=(rand()*2-1)*Math.pow(x,decay)}}return b}
 function makeNoise(seconds=1){const len=Math.floor(ctx.sampleRate*seconds),b=ctx.createBuffer(1,len,ctx.sampleRate),d=b.getChannelData(0);for(let i=0;i<len;i++)d[i]=rand()*2-1;return b}
-function initAudio(){if(ctx)return ctx;const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)throw new Error('Web Audio is not supported');try{ctx=new AudioCtx({sampleRate:48000})}catch(e){ctx=new AudioCtx();}
+function initAudio(){if(ctx)return ctx;const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)throw new Error('Web Audio is not supported');try{ctx=new AudioCtx({sampleRate:44100})}catch(e){ctx=new AudioCtx();}
   master=ctx.createGain();master.gain.value=0.0001;compressor=ctx.createDynamicsCompressor();compressor.threshold.value=-16;compressor.knee.value=18;compressor.ratio.value=4;compressor.attack.value=.006;compressor.release.value=.2;
   analyser=ctx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.84;recordDest=ctx.createMediaStreamDestination();
   dryGain=ctx.createGain();ambientBus=ctx.createGain();rhythmSampleBus=ctx.createGain();eightOhEightBus=ctx.createGain();rhythmDelaySend=ctx.createGain();rhythmReverbSend=ctx.createGain();delayNode=ctx.createDelay(2.5);delayGain=ctx.createGain();feedbackGain=ctx.createGain();convolver=ctx.createConvolver();reverbGain=ctx.createGain();convolver.buffer=makeImpulse();noiseBuffer=makeNoise(1.2);
