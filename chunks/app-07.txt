@@ -9,10 +9,39 @@ function dailyDateStamp(){
   const d=new Date(),p=n=>String(n).padStart(2,'0');
   return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
 }
-const dailyCharacterMemoryKey='felidDailyCharacterMemoryV2';
+const dailyCharacterMemoryKey='felidDailyCharacterMemoryV3';
 let dailyCharacterHistory=[];try{dailyCharacterHistory=JSON.parse(localStorage.getItem(dailyCharacterMemoryKey)||'[]');if(!Array.isArray(dailyCharacterHistory))dailyCharacterHistory=[]}catch(e){dailyCharacterHistory=[]}
-let dailyCurrentCharacter=null;
+let dailyCurrentCharacter=null,dailyNoveltyArchive=[],dailyNoveltyDb=null;
+const dailyNoveltyDbName='felidDailyNoveltyArchiveV1',dailyNoveltyStore='tracks';
 
+function openDailyNoveltyDb(){
+  if(dailyNoveltyDb)return Promise.resolve(dailyNoveltyDb);
+  if(!('indexedDB' in window))return Promise.resolve(null);
+  return new Promise(resolve=>{
+    try{
+      const req=indexedDB.open(dailyNoveltyDbName,1);
+      req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(dailyNoveltyStore))db.createObjectStore(dailyNoveltyStore,{keyPath:'id',autoIncrement:true})};
+      req.onsuccess=()=>{dailyNoveltyDb=req.result;resolve(dailyNoveltyDb)};
+      req.onerror=()=>resolve(null);
+    }catch(e){resolve(null)}
+  });
+}
+async function loadDailyNoveltyArchive(){
+  const db=await openDailyNoveltyDb();
+  if(!db){dailyNoveltyArchive=[];return}
+  dailyNoveltyArchive=await new Promise(resolve=>{
+    try{const tx=db.transaction(dailyNoveltyStore,'readonly'),req=tx.objectStore(dailyNoveltyStore).getAll();req.onsuccess=()=>resolve(Array.isArray(req.result)?req.result:[]);req.onerror=()=>resolve([])}
+    catch(e){resolve([])}
+  });
+}
+async function addDailyNoveltyEntry(entry){
+  dailyNoveltyArchive.push(entry);
+  const db=await openDailyNoveltyDb();if(!db)return;
+  await new Promise(resolve=>{
+    try{const tx=db.transaction(dailyNoveltyStore,'readwrite');tx.objectStore(dailyNoveltyStore).add(entry);tx.oncomplete=()=>resolve();tx.onerror=()=>resolve()}
+    catch(e){resolve()}
+  });
+}
 function dailySampleValues(configMap,rangeMap){
   const out={};for(const [id,c] of Object.entries(configMap))out[id]=randomValue(c,rangeMap[id]);return out;
 }
@@ -32,24 +61,33 @@ function dailyFingerprint(c){
   return {v:[
     n(c.ambient.tempo,configs.tempo),n(c.ambient.density,configs.density),n(c.ambient.grain,configs.grain),
     n(c.ambient.ma,configs.ma),n(c.ambient.continuity,configs.continuity),n(c.ambient.pitch,configs.pitch),
-    n(c.ambient.cutoff,configs.cutoff),n(c.rhythm.density,rhythmConfigs.density),n(c.rhythm.complexity,rhythmConfigs.complexity),
-    n(c.rhythm.mutation,rhythmConfigs.mutation),n(c.rhythm.slice,rhythmConfigs.slice),n(c.rhythm.pitch,rhythmConfigs.pitch),
-    n(c.rhythm.space,rhythmConfigs.space),n(c.mixer.sampleRhythm,mixerConfigs.sampleRhythm),
-    n(c.mixer.e808mix,mixerConfigs.e808mix),n(c.mixer.e808bass,mixerConfigs.e808bass)
-  ],rhythm:c.rhythmEnabled?1:0,groove:c.groovePrimary,division:c.division};
+    n(c.ambient.cutoff,configs.cutoff),n(c.ambient.reverb,configs.reverb),n(c.rhythm.density,rhythmConfigs.density),
+    n(c.rhythm.complexity,rhythmConfigs.complexity),n(c.rhythm.mutation,rhythmConfigs.mutation),
+    n(c.rhythm.slice,rhythmConfigs.slice),n(c.rhythm.pitch,rhythmConfigs.pitch),n(c.rhythm.space,rhythmConfigs.space),
+    n(c.mixer.sampleRhythm,mixerConfigs.sampleRhythm),n(c.mixer.e808mix,mixerConfigs.e808mix),
+    n(c.mixer.e808bass,mixerConfigs.e808bass),n(c.mixer.bassTone,mixerConfigs.bassTone)
+  ],rhythm:c.rhythmEnabled?1:0,groove:c.groovePrimary,secondary:c.grooveSecondary,division:c.division};
 }
 function dailyCharacterDistance(a,b){
   if(!a||!b||!Array.isArray(a.v)||!Array.isArray(b.v))return 1;
   const len=Math.min(a.v.length,b.v.length);let sum=0;for(let i=0;i<len;i++)sum+=Math.abs(a.v[i]-b.v[i]);
-  let d=len?sum/len:0;if(a.rhythm!==b.rhythm)d+=.16;if(a.groove!==b.groove)d+=.12;if(a.division!==b.division)d+=.08;return d;
+  let d=len?sum/len:0;if(a.rhythm!==b.rhythm)d+=.14;if(a.groove!==b.groove)d+=.11;if(a.secondary!==b.secondary)d+=.05;if(a.division!==b.division)d+=.07;return d;
+}
+function allPastCharacters(){
+  const archive=dailyNoveltyArchive.map(x=>x.character).filter(Boolean);
+  return [...dailyCharacterHistory,...archive];
 }
 function dailyChooseCharacter(){
-  const recent=dailyCharacterHistory.slice(-24);let best=null,bestScore=-1;
-  for(let i=0;i<36;i++){const c=dailyMakeCandidate(),fp=dailyFingerprint(c);let score=recent.length?Math.min(...recent.map(h=>dailyCharacterDistance(fp,h))):1;if(score>bestScore){bestScore=score;best={candidate:c,fingerprint:fp,score}}}
+  const past=allPastCharacters();let best=null,bestScore=-1;
+  for(let i=0;i<96;i++){
+    const candidate=dailyMakeCandidate(),fingerprint=dailyFingerprint(candidate);
+    const score=past.length?Math.min(...past.map(h=>dailyCharacterDistance(fingerprint,h))):1;
+    if(score>bestScore){bestScore=score;best={candidate,fingerprint,score}}
+  }
   return best;
 }
 function dailyRememberCharacter(fp){
-  dailyCharacterHistory.push(fp);while(dailyCharacterHistory.length>36)dailyCharacterHistory.shift();
+  dailyCharacterHistory.push(fp);while(dailyCharacterHistory.length>180)dailyCharacterHistory.shift();
   try{localStorage.setItem(dailyCharacterMemoryKey,JSON.stringify(dailyCharacterHistory))}catch(e){}
 }
 function dailyApplyCharacter(c){
@@ -62,7 +100,37 @@ function dailyApplyCharacter(c){
   if(rhythmOn!==c.rhythmEnabled)toggleRhythm();
   dailyForceSourceChange();resetWalkAgents();applyGlobals();setContinuousRandom(true);
 }
-
+function dailyAudioFingerprint(left,right){
+  const n=Math.min(left.length,right.length);if(!n)return {v:[]};
+  const stride=Math.max(1,Math.floor(n/180000)),segments=16,segVals=new Array(segments).fill(0),segN=new Array(segments).fill(0);
+  let sum=0,peak=0,diff=0,side=0,mid=0,zc=0,count=0,prev=(left[0]+right[0])*.5;
+  for(let i=0;i<n;i+=stride){
+    const l=left[i],r=right[i],m=(l+r)*.5,x=Math.abs(m);sum+=m*m;peak=Math.max(peak,x);
+    const d=m-prev;diff+=d*d;if((m>=0)!=(prev>=0))zc++;prev=m;side+=(l-r)*(l-r);mid+=(l+r)*(l+r);count++;
+    const s=Math.min(segments-1,Math.floor((i/n)*segments));segVals[s]+=m*m;segN[s]++;
+  }
+  const rms=Math.sqrt(sum/Math.max(1,count)),crest=peak/Math.max(.000001,rms),zcr=zc/Math.max(1,count),brightness=Math.sqrt(diff/Math.max(1,count))/Math.max(.000001,rms);
+  const width=Math.sqrt(side/Math.max(1,count))/Math.max(.000001,Math.sqrt(mid/Math.max(1,count)));
+  const env=segVals.map((x,i)=>Math.sqrt(x/Math.max(1,segN[i]))),mean=env.reduce((a,b)=>a+b,0)/env.length;
+  const envNorm=env.map(x=>clamp(x/Math.max(.000001,mean*2),0,1)),envStd=Math.sqrt(env.reduce((a,x)=>a+(x-mean)*(x-mean),0)/env.length)/Math.max(.000001,mean);
+  const silence=env.filter(x=>x<Math.max(.0025,mean*.18)).length/env.length;
+  return {v:[
+    clamp((Math.log10(Math.max(1e-5,rms))+5)/5,0,1),clamp(crest/10,0,1),clamp(zcr*12,0,1),
+    clamp(brightness/3,0,1),clamp(width/2,0,1),clamp(envStd/1.5,0,1),silence,...envNorm
+  ]};
+}
+function dailyVectorDistance(a,b){
+  if(!a||!b||!Array.isArray(a.v)||!Array.isArray(b.v)||!a.v.length||!b.v.length)return 1;
+  const len=Math.min(a.v.length,b.v.length);let sum=0;for(let i=0;i<len;i++)sum+=Math.abs(a.v[i]-b.v[i]);return sum/len;
+}
+function dailyCombinedDistance(character,audio,entry){
+  const ad=dailyVectorDistance(audio,entry.audio),cd=dailyCharacterDistance(character,entry.character);
+  return ad*.72+cd*.28;
+}
+function dailyNoveltyScore(character,audio){
+  if(!dailyNoveltyArchive.length)return 1;
+  return Math.min(...dailyNoveltyArchive.map(e=>dailyCombinedDistance(character,audio,e)));
+}
 function dailySnapshot(label,duration){
   return {
     createdAt:new Date().toISOString(),label,durationSeconds:duration,
