@@ -52,7 +52,7 @@ for (let batchAttempt = 1; batchAttempt <= 2 && !success; batchAttempt++) {
   await page.waitForFunction(() => {
     const s = document.querySelector('#dailyStatus')?.textContent || '';
     return s.includes("TODAY'S 3 TRACKS READY") || s.includes('NOVELTY GATE STOPPED');
-  }, { timeout: 60 * 60 * 1000 });
+  }, null, { timeout: 60 * 60 * 1000 });
   const status = await page.locator('#dailyStatus').textContent();
   success = status.includes("TODAY'S 3 TRACKS READY");
 }
