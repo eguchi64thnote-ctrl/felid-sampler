@@ -199,7 +199,7 @@ async function dailyRecordOne(label,index){
   if(dailyCancelRequested)return false;
   if(!running)await start();
   if(!ctx||!master)throw new Error('Audio engine is unavailable');
-  const maxAttempts=4,noveltyThreshold=.115;let best=null;
+  const maxAttempts=6,noveltyThreshold=.115;
   for(let attempt=1;attempt<=maxAttempts&&!dailyCancelRequested;attempt++){
     const picked=dailyChooseCharacter();dailyCurrentCharacter=picked.fingerprint;dailyApplyCharacter(picked.candidate);
     const duration=Math.round(120+rand()*40);beginDailyPcmCapture();
@@ -214,17 +214,12 @@ async function dailyRecordOne(label,index){
     const novelty=dailyNoveltyScore(dailyCurrentCharacter,captured.audio);
     const meta=dailySnapshot(label,duration);meta.audioFingerprint=captured.audio;meta.noveltyScore=novelty;meta.noveltyThreshold=noveltyThreshold;meta.attempt=attempt;
     const entry={createdAt:new Date().toISOString(),label,character:dailyCurrentCharacter,audio:captured.audio,noveltyScore:novelty,accepted:novelty>=noveltyThreshold||!dailyNoveltyArchive.length};
-    if(!best||novelty>best.novelty)best={blob:captured.blob,meta,novelty,entry};
     await addDailyNoveltyEntry(entry);
     if(entry.accepted){dailyRememberCharacter(dailyCurrentCharacter);dailyRenderResult(label,captured.blob,meta);return true}
     if(status)status.textContent='TRACK '+label+' — too similar ('+novelty.toFixed(3)+'), regenerating…';
     dailyForceSourceChange();newGroove(true);allRandomMorph();await new Promise(r=>setTimeout(r,800));
   }
-  if(best){
-    best.meta.noveltyOverride=true;dailyRememberCharacter(best.meta.character);dailyRenderResult(label,best.blob,best.meta);
-    const status=$('#dailyStatus');if(status)status.textContent='TRACK '+label+' — strongest available variation kept after '+maxAttempts+' attempts';
-    return true;
-  }
+  const status=$('#dailyStatus');if(status)status.textContent='TRACK '+label+' — NOVELTY GATE: no sufficiently different track after '+maxAttempts+' attempts';
   return false;
 }
 async function runDaily3(){
@@ -233,9 +228,9 @@ async function runDaily3(){
   dailyUrls.forEach(u=>URL.revokeObjectURL(u));dailyUrls=[];const root=$('#dailyResults');if(root)root.innerHTML='';
   const go=$('#daily3'),cancel=$('#dailyCancel');if(go)go.disabled=true;if(cancel)cancel.disabled=false;
   try{
-    const labels=['A','B','C'];
-    for(let i=0;i<labels.length;i++){if(!(await dailyRecordOne(labels[i],i)))break}
-    if(!dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent='TODAY\'S 3 TRACKS READY — novelty-checked 44.1kHz / 16bit WAV'}
+    const labels=['A','B','C'];let completed=0;
+    for(let i=0;i<labels.length;i++){if(!(await dailyRecordOne(labels[i],i)))break;completed++}
+    if(!dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent=completed===3?'TODAY\'S 3 TRACKS READY — novelty-checked 44.1kHz / 16bit WAV':('NOVELTY GATE STOPPED — '+completed+'/3 tracks passed; run again for a new attempt')}
   }catch(e){console.error('daily tracks',e);if(dailyCapture)endDailyPcmCapture();const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACK ERROR — '+(e?.message||e)}
   finally{
     dailyBatchRunning=false;dailyVarietyMode=false;flushPhraseMemory();if(go)go.disabled=false;if(cancel)cancel.disabled=true;
