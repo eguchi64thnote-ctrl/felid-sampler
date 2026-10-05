@@ -9,10 +9,64 @@ function dailyDateStamp(){
   const d=new Date(),p=n=>String(n).padStart(2,'0');
   return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
 }
+const dailyCharacterMemoryKey='felidDailyCharacterMemoryV2';
+let dailyCharacterHistory=[];try{dailyCharacterHistory=JSON.parse(localStorage.getItem(dailyCharacterMemoryKey)||'[]');if(!Array.isArray(dailyCharacterHistory))dailyCharacterHistory=[]}catch(e){dailyCharacterHistory=[]}
+let dailyCurrentCharacter=null;
+
+function dailySampleValues(configMap,rangeMap){
+  const out={};for(const [id,c] of Object.entries(configMap))out[id]=randomValue(c,rangeMap[id]);return out;
+}
+function dailyMakeCandidate(){
+  const ambient=dailySampleValues(configs,randomRanges),rhythm=dailySampleValues(rhythmConfigs,rhythmRandomRanges),mixer=dailySampleValues(mixerConfigs,mixerRandomRanges);
+  const rhythmEnabled=rand()<.72;
+  if(rand()<.30)mixer.e808mix=Math.min(mixer.e808mix,.12+rand()*.16);
+  else if(rand()<.28)mixer.e808mix=Math.max(mixer.e808mix,.62+rand()*.23);
+  if(!rhythmEnabled){ambient.ma=Math.max(ambient.ma,.32+rand()*.42);ambient.density=Math.min(ambient.density,.62+rand()*.18)}
+  const groovePrimary=GROOVE_KEYS[Math.floor(rand()*GROOVE_KEYS.length)];
+  const others=GROOVE_KEYS.filter(x=>x!==groovePrimary),grooveSecondary=others[Math.floor(rand()*others.length)];
+  const divisions=[4,3,5,7],division=divisions[Math.floor(rand()*divisions.length)];
+  return {ambient,rhythm,mixer,rhythmEnabled,groovePrimary,grooveSecondary,division};
+}
+function dailyFingerprint(c){
+  const n=(v,cfg)=>clamp(toNorm(v,cfg),0,1);
+  return {v:[
+    n(c.ambient.tempo,configs.tempo),n(c.ambient.density,configs.density),n(c.ambient.grain,configs.grain),
+    n(c.ambient.ma,configs.ma),n(c.ambient.continuity,configs.continuity),n(c.ambient.pitch,configs.pitch),
+    n(c.ambient.cutoff,configs.cutoff),n(c.rhythm.density,rhythmConfigs.density),n(c.rhythm.complexity,rhythmConfigs.complexity),
+    n(c.rhythm.mutation,rhythmConfigs.mutation),n(c.rhythm.slice,rhythmConfigs.slice),n(c.rhythm.pitch,rhythmConfigs.pitch),
+    n(c.rhythm.space,rhythmConfigs.space),n(c.mixer.sampleRhythm,mixerConfigs.sampleRhythm),
+    n(c.mixer.e808mix,mixerConfigs.e808mix),n(c.mixer.e808bass,mixerConfigs.e808bass)
+  ],rhythm:c.rhythmEnabled?1:0,groove:c.groovePrimary,division:c.division};
+}
+function dailyCharacterDistance(a,b){
+  if(!a||!b||!Array.isArray(a.v)||!Array.isArray(b.v))return 1;
+  const len=Math.min(a.v.length,b.v.length);let sum=0;for(let i=0;i<len;i++)sum+=Math.abs(a.v[i]-b.v[i]);
+  let d=len?sum/len:0;if(a.rhythm!==b.rhythm)d+=.16;if(a.groove!==b.groove)d+=.12;if(a.division!==b.division)d+=.08;return d;
+}
+function dailyChooseCharacter(){
+  const recent=dailyCharacterHistory.slice(-24);let best=null,bestScore=-1;
+  for(let i=0;i<36;i++){const c=dailyMakeCandidate(),fp=dailyFingerprint(c);let score=recent.length?Math.min(...recent.map(h=>dailyCharacterDistance(fp,h))):1;if(score>bestScore){bestScore=score;best={candidate:c,fingerprint:fp,score}}}
+  return best;
+}
+function dailyRememberCharacter(fp){
+  dailyCharacterHistory.push(fp);while(dailyCharacterHistory.length>36)dailyCharacterHistory.shift();
+  try{localStorage.setItem(dailyCharacterMemoryKey,JSON.stringify(dailyCharacterHistory))}catch(e){}
+}
+function dailyApplyCharacter(c){
+  for(const [id,cfg] of Object.entries(configs)){if(locked.has(id))continue;state[id]=snapConfigValue(c.ambient[id],cfg);syncControl(id,state,cfg)}
+  for(const [id,cfg] of Object.entries(rhythmConfigs)){if(rhythmLocked.has(id))continue;rhythmState[id]=snapConfigValue(c.rhythm[id],cfg);syncRhythmControl(id)}
+  for(const [id,cfg] of Object.entries(mixerConfigs)){if(mixerLocked.has(id))continue;mixerState[id]=snapConfigValue(c.mixer[id],cfg);syncMixerControl(id)}
+  groovePrimary=c.groovePrimary;grooveSecondary=c.grooveSecondary;grooveBlendAmount=clamp(rhythmState.grooveMix,0,1);currentDivision=c.division;
+  grooveFocus='auto';divisionFocus='auto';updateGrooveButtons();updateDivisionButtons();updateDivisionReadout();rebuildCurrentRhythmPattern();
+  rhythmStep=0;rhythmBar=0;for(const role of ['kick','snare','hat','perc'])rhythmRoleState[role].sample=-1;
+  if(rhythmOn!==c.rhythmEnabled)toggleRhythm();
+  dailyForceSourceChange();resetWalkAgents();applyGlobals();setContinuousRandom(true);
+}
+
 function dailySnapshot(label,duration){
   return {
     createdAt:new Date().toISOString(),label,durationSeconds:duration,
-    audioFormat:{container:'WAV',encoding:'IEEE_FLOAT',bitDepth:32,sampleRate:ctx?.sampleRate||null,channels:2},
+    audioFormat:{container:'WAV',encoding:'IEEE_FLOAT',bitDepth:32,sampleRate:ctx?.sampleRate||null,channels:2},character:dailyCurrentCharacter,
     ambient:{...state},rhythm:{...rhythmState},mixer:{...mixerState},
     groove:{focus:grooveFocus,primary:groovePrimary,secondary:grooveSecondary,blend:grooveBlendAmount,division:currentDivision},
     randomWalk:evolving
@@ -75,26 +129,26 @@ async function dailyRecordOne(label,index){
   if(dailyCancelRequested)return false;
   if(!running)await start();
   if(!ctx||!master)throw new Error('Audio engine is unavailable');
-  if(label==='A'&&rhythmOn)toggleRhythm();
-  if(label!=='A'&&!rhythmOn)toggleRhythm();
-  if(label!=='A')newGroove(true);
-  allRandomMorph();
-  const duration=Math.round(120+rand()*60);
+  const picked=dailyChooseCharacter();dailyCurrentCharacter=picked.fingerprint;dailyRememberCharacter(picked.fingerprint);dailyApplyCharacter(picked.candidate);
+  const duration=Math.round(120+rand()*40);
   beginDailyPcmCapture();
-  const started=Date.now(),status=$('#dailyStatus');
+  const started=Date.now(),status=$('#dailyStatus');let nextSceneAt=8+rand()*12,scene=1;
   while((Date.now()-started)<duration*1000&&!dailyCancelRequested){
     const elapsed=Math.floor((Date.now()-started)/1000),left=Math.max(0,duration-elapsed);
-    if(status)status.textContent='TRACK '+label+' / 3 — WAV '+Math.round(ctx.sampleRate/1000)+'kHz / 32-bit float · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' remaining';
+    if(elapsed>=nextSceneAt){
+      allRandomMorph();dailyForceSourceChange();if(rand()<.68)newGroove(true);scene++;nextSceneAt+=8+rand()*12;
+    }
+    if(status)status.textContent='TRACK '+label+' / 3 — scene '+scene+' · memory-aware random · WAV '+Math.round(ctx.sampleRate/1000)+'kHz / 32-bit float · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' remaining';
     await new Promise(r=>setTimeout(r,1000));
   }
-  const blob=endDailyPcmCapture();
+  const blob=endDailyPcmCapture();flushPhraseMemory();
   if(dailyCancelRequested||!blob)return false;
   dailyRenderResult(label,blob,dailySnapshot(label,duration));
   return true;
 }
 async function runDaily3(){
   if(dailyBatchRunning)return;
-  dailyBatchRunning=true;dailyCancelRequested=false;
+  dailyBatchRunning=true;dailyCancelRequested=false;dailyVarietyMode=true;dailyRecentSamples.length=0;
   dailyUrls.forEach(u=>URL.revokeObjectURL(u));dailyUrls=[];const root=$('#dailyResults');if(root)root.innerHTML='';
   const go=$('#daily3'),cancel=$('#dailyCancel');if(go)go.disabled=true;if(cancel)cancel.disabled=false;
   try{
@@ -103,7 +157,7 @@ async function runDaily3(){
     if(!dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent='TODAY\'S 3 TRACKS READY — lossless WAV + parameter snapshots'}
   }catch(e){console.error('daily tracks',e);if(dailyCapture)endDailyPcmCapture();const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACK ERROR — '+(e?.message||e)}
   finally{
-    dailyBatchRunning=false;if(go)go.disabled=false;if(cancel)cancel.disabled=true;
+    dailyBatchRunning=false;dailyVarietyMode=false;flushPhraseMemory();if(go)go.disabled=false;if(cancel)cancel.disabled=true;
     if(running)stop();
     if(dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACKS CANCELLED'}
   }
