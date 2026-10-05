@@ -9,7 +9,10 @@ async function verifyGitHubOidc(token) {
     audience: 'felid-daily-tracks',
   });
   if (payload.repository !== 'eguchi64thnote-ctrl/felid-sampler') throw new Error('Repository mismatch');
-  if (payload.ref !== 'refs/heads/main') throw new Error('Ref mismatch');
+  const onMain = payload.ref === 'refs/heads/main' ||
+    String(payload.job_workflow_ref || '').endsWith('@refs/heads/main') ||
+    String(payload.workflow_ref || '').endsWith('@refs/heads/main');
+  if (!onMain) throw new Error('Main branch required');
   return payload;
 }
 
@@ -44,7 +47,12 @@ export default async function handler(req, res) {
     });
     return res.status(200).json({ pathname, presignedUrl });
   } catch (error) {
-    console.error(error);
-    return res.status(401).json({ error: 'Unauthorized' });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('sign-upload failed:', message);
+    const authError = /Repository mismatch|Main branch required|JWT|signature|audience|issuer/i.test(message);
+    return res.status(authError ? 401 : 500).json({
+      error: authError ? 'Unauthorized' : 'Upload signing failed',
+      detail: message,
+    });
   }
 }
