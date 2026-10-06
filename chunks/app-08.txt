@@ -24,14 +24,16 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('pageshow',()=>{if(running&&ctx&&ctx.state!=='running')ctx.resume().catch(()=>{})});
 
 function syncMobileDock(){
-  const p=$('#mobilePlay'),w=$('#mobileWalk'),r=$('#mobileRhythm');
+  const p=$('#mobilePlay'),w=$('#mobileWalk'),r=$('#mobileRhythm'),m=$('#mobileMode');
   if(p){p.textContent=running?'STOP':'PLAY';p.classList.toggle('mobilePrimary',!running);p.classList.toggle('mobileOn',running)}
-  if(w){w.innerHTML=evolving?'RANDOM<br>WALK ON':'RANDOM<br>WALK';w.classList.toggle('mobileOn',evolving)}
+  if(w){w.innerHTML=generationMode==='minimal'?(evolving?'GRADUAL<br>EVOLVE':'GRADUAL<br>HOLD'):(evolving?'RANDOM<br>WALK ON':'RANDOM<br>WALK');w.classList.toggle('mobileOn',evolving)}
   if(r){r.innerHTML=rhythmOn?'RHYTHM<br>ON':'RHYTHM<br>OFF';r.classList.toggle('mobileOn',rhythmOn)}
+  if(m){m.innerHTML=generationMode==='minimal'?'MODE<br>MINIMAL':'MODE<br>FREE';m.classList.toggle('mobileOn',generationMode==='minimal')}
 }
 $('#mobilePlay')?.addEventListener('click',()=>{running?stop():start();setTimeout(syncMobileDock,20)});
 $('#mobileWalk')?.addEventListener('click',()=>{$('#evolve').click();syncMobileDock()});
 $('#mobileRhythm')?.addEventListener('click',()=>{$('#rhythmToggle').click();syncMobileDock()});
+$('#mobileMode')?.addEventListener('click',()=>{setGenerationMode(generationMode==='minimal'?'free':'minimal');syncMobileDock()});
 for(const id of ['play','evolve','continuousRandom','rhythmToggle'])$('#'+id)?.addEventListener('click',()=>setTimeout(syncMobileDock,20));
 syncMobileDock();
 

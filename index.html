@@ -19,6 +19,8 @@
   <div class="transport">
     <button id="play" class="primary">PLAY</button>
     <button id="evolve" class="on">RANDOM WALK ON</button>
+    <button id="freeMode" class="modeButton on">FREE MODE</button>
+    <button id="minimalMode" class="modeButton">MINIMAL GROOVE</button>
     <button type="button" onclick="location.href='/studio'">LIVE VISUAL STUDIO</button>
   </div>
 </header>
@@ -46,6 +48,7 @@
   <span class="statusItem">LAST SOURCE <span id="lastSource" class="metric">—</span></span>
   <span class="statusItem paletteItem">PALETTE <span id="sourcePalette" class="metric">ALL</span></span>
   <span class="statusItem rhythmItem"><span id="rhythmPulse" class="rhythmPulse"></span>RHYTHM <span id="grooveStatus" class="metric">OFF</span></span>
+  <span class="statusItem modeItem">MODE <span id="generationModeStatus" class="metric">FREE</span></span>
 </div>
 <section class="dailyTrackPanel" aria-label="daily track generator">
   <div class="dailyTrackHead">
@@ -123,6 +126,7 @@
   <button id="mobilePlay" class="mobilePrimary">PLAY</button>
   <button id="mobileWalk" class="mobileOn">RANDOM<br>WALK ON</button>
   <button id="mobileRhythm">RHYTHM<br>OFF</button>
+  <button id="mobileMode">MODE<br>FREE</button>
 </nav>
 <script src="app.js" defer></script>
 </body></html>
