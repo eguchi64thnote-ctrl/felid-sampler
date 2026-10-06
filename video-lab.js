@@ -2,9 +2,11 @@ const $=s=>document.querySelector(s);
 const audioInput=$('#audioInput'),imageInput=$('#imageInput'),previewBtn=$('#previewBtn'),recordBtn=$('#recordBtn'),stopBtn=$('#stopBtn'),repickBtn=$('#repickBtn');
 const statusEl=$('#status'),segmentInfo=$('#segmentInfo'),progressEl=$('#analysisProgress'),canvas=$('#canvas'),ctx=canvas.getContext('2d'),hud=$('#hud'),downloadLink=$('#downloadLink');
 const intensity=$('#intensity'),maxLayers=$('#maxLayers'),zoom=$('#zoom'),shake=$('#shake'),bright=$('#bright'),trail=$('#trail'),blur=$('#blur'),transitionStyle=$('#transitionStyle');
+const wavModeBtn=$('#wavModeBtn'),liveModeBtn=$('#liveModeBtn'),connectLiveBtn=$('#connectLiveBtn'),liveInfo=$('#liveInfo'),wavSourceBlock=$('#wavSourceBlock');
 let audioFile=null,audioUrl=null,decodedBuffer=null,audioEl=null,audioCtx=null,sourceNode=null,analyser=null,audioDest=null;
 let images=[],raf=0,mediaRecorder=null,chunks=[],previewing=false,recording=false;
 let selectedStart=0,selectedDuration=30,analysisCandidates=[];
+let audioMode='wav',liveBus=null,liveStartedAt=0;
 let visualLayers=[],gridRects=[],lastEnergy=0,lastHigh=0,beatFloor=.08,lastSpawn=0,flashAlpha=0,energyHistory=[],lastImageIndex=-1;
 
 function fmt(sec){sec=Math.max(0,sec||0);const m=Math.floor(sec/60),s=Math.floor(sec%60);return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
@@ -19,9 +21,57 @@ function updateLabels(){
 }
 [intensity,maxLayers,zoom,shake,bright,trail,blur].forEach(x=>x.addEventListener('input',updateLabels));updateLabels();
 
+function resolveGeneratorWindow(){
+  try{
+    if(window.parent!==window){
+      const f=window.parent.document.getElementById('generatorFrame');
+      if(f?.contentWindow)return f.contentWindow;
+    }
+  }catch(e){}
+  try{if(window.opener&&!window.opener.closed)return window.opener}catch(e){}
+  return null;
+}
+function setAudioMode(mode){
+  audioMode=mode==='live'?'live':'wav';
+  wavModeBtn?.classList.toggle('active',audioMode==='wav');
+  liveModeBtn?.classList.toggle('active',audioMode==='live');
+  if(wavSourceBlock)wavSourceBlock.style.display=audioMode==='wav'?'block':'none';
+  if(audioMode==='live'){
+    segmentInfo.textContent='LIVE GENERATOR — 現在鳴っている音をリアルタイム解析します。';
+    previewBtn.textContent='START LIVE VISUAL';
+    recordBtn.textContent='RECORD LIVE 30s';
+  }else{
+    segmentInfo.textContent=decodedBuffer?'AUTO SELECTED  '+fmt(selectedStart)+' – '+fmt(selectedStart+Math.min(selectedDuration,decodedBuffer.duration-selectedStart)):'WAVを選ぶと30秒区間を自動解析します。';
+    previewBtn.textContent='PREVIEW 30s';
+    recordBtn.textContent='RECORD 30s';
+  }
+  ready();
+}
+async function connectLiveGenerator(){
+  const w=resolveGeneratorWindow();
+  if(!w){
+    liveBus=null;
+    if(liveInfo)liveInfo.textContent='Generatorが見つかりません。/studio から開いてください。';
+    ready();return false;
+  }
+  const bus=w.feLidLiveBus;
+  if(!bus?.analyser||!bus?.context||!bus?.stream){
+    liveBus=null;
+    if(liveInfo)liveInfo.textContent='Generator側でPLAYを押して音を起動してから、もう一度 CONNECT LIVE を押してください。';
+    ready();return false;
+  }
+  liveBus=bus;audioCtx=bus.context;analyser=bus.analyser;audioDest={stream:bus.stream};
+  try{if(audioCtx.state!=='running')await audioCtx.resume()}catch(e){}
+  if(liveInfo)liveInfo.textContent='CONNECTED — Generator音をリアルタイム参照中';
+  if(connectLiveBtn)connectLiveBtn.classList.add('active');
+  setAudioMode('live');ready();return true;
+}
 function ready(){
-  const ok=!!audioUrl&&!!decodedBuffer&&images.length>0&&!previewing;
-  previewBtn.disabled=!ok;recordBtn.disabled=!ok;repickBtn.disabled=!decodedBuffer||previewing;
+  const ok=audioMode==='live'
+    ? !!liveBus?.analyser&&!!liveBus?.stream&&images.length>0&&!previewing
+    : !!audioUrl&&!!decodedBuffer&&images.length>0&&!previewing;
+  previewBtn.disabled=!ok;recordBtn.disabled=!ok;
+  repickBtn.disabled=audioMode!=='wav'||!decodedBuffer||previewing;
 }
 async function decodeAudioFile(file){
   if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
@@ -76,7 +126,12 @@ async function autoPickExcerpt(randomAmongTop=false){
   statusEl.textContent='30秒区間を自動選択しました。写真を選ぶとプレビューできます。';
   setTimeout(()=>progressEl.style.width='0%',500);ready();
 }
+wavModeBtn?.addEventListener('click',()=>setAudioMode('wav'));
+liveModeBtn?.addEventListener('click',()=>{setAudioMode('live');connectLiveGenerator()});
+connectLiveBtn?.addEventListener('click',()=>connectLiveGenerator());
+
 audioInput.addEventListener('change',async()=>{
+  setAudioMode('wav');
   if(audioUrl)URL.revokeObjectURL(audioUrl);
   audioFile=audioInput.files?.[0]||null;audioUrl=audioFile?URL.createObjectURL(audioFile):null;decodedBuffer=null;
   if(!audioFile){ready();return}
@@ -475,17 +530,27 @@ function renderLayers(now,s){
 function drawFrame(now){
   if(!previewing||!analyser||!images.length)return;
   const s=spectrum(now),ev=updateEvents(s,now);renderLayers(now,s);
-  const elapsed=audioEl?audioEl.currentTime-selectedStart:0;
-  hud.textContent=fmt(Math.max(0,elapsed))+' / 00:30 · '+ev.env.toUpperCase()+' · LOW '+Math.round(s.low*100)+' MID '+Math.round(s.mid*100)+' HIGH '+Math.round(s.high*100)+(ev.beatHit?' · BEAT':'')+(ev.fxHit?' · FX':'')+' · CHAOS '+Math.round((ev.activity||0)*100);
-  if(audioEl&&audioEl.currentTime>=selectedStart+selectedDuration-.03){stopAll(true);return}
+  const elapsed=audioMode==='live'?(now-liveStartedAt)/1000:(audioEl?audioEl.currentTime-selectedStart:0);
+  hud.textContent=fmt(Math.max(0,elapsed))+(audioMode==='live'?' · LIVE':' / 00:30')+' · '+ev.env.toUpperCase()+' · LOW '+Math.round(s.low*100)+' MID '+Math.round(s.mid*100)+' HIGH '+Math.round(s.high*100)+(ev.beatHit?' · BEAT':'')+(ev.fxHit?' · FX':'')+' · CHAOS '+Math.round((ev.activity||0)*100);
+  if(audioMode==='wav'&&audioEl&&audioEl.currentTime>=selectedStart+selectedDuration-.03){stopAll(true);return}
+  if(audioMode==='live'&&recording&&elapsed>=30){stopAll(true);return}
   raf=requestAnimationFrame(drawFrame);
 }
 async function startPreview(doRecord=false){
   if(previewing)stopAll(false);
-  await ensurePlaybackAudio();
+  if(audioMode==='live'){
+    if(!liveBus?.analyser){
+      const ok=await connectLiveGenerator();
+      if(!ok)return;
+    }
+    audioCtx=liveBus.context;analyser=liveBus.analyser;audioDest={stream:liveBus.stream};
+    try{if(audioCtx.state!=='running')await audioCtx.resume()}catch(e){}
+  }else{
+    await ensurePlaybackAudio();
+  }
   visualLayers=[];gridRects=[];lastEnergy=0;lastHigh=0;beatFloor=.08;lastSpawn=0;flashAlpha=0;energyHistory=[];lastImageIndex=-1;generateRandomGrid();
-  previewing=true;recording=doRecord;stopBtn.disabled=false;previewBtn.disabled=true;recordBtn.disabled=true;repickBtn.disabled=true;downloadLink.classList.remove('show');
-  audioEl.currentTime=selectedStart;
+  previewing=true;recording=doRecord;liveStartedAt=performance.now();stopBtn.disabled=false;previewBtn.disabled=true;recordBtn.disabled=true;repickBtn.disabled=true;downloadLink.classList.remove('show');
+  if(audioMode==='wav')audioEl.currentTime=selectedStart;
   if(doRecord){
     if(!canvas.captureStream||!window.MediaRecorder){statusEl.textContent='このブラウザでは動画録画に対応していません。';previewing=false;ready();return}
     const cvs=canvas.captureStream(30),stream=new MediaStream([...cvs.getVideoTracks(),...audioDest.stream.getAudioTracks()]);
@@ -502,13 +567,17 @@ async function startPreview(doRecord=false){
     };
     mediaRecorder.start(1000);
   }
-  audioEl.onended=()=>stopAll(true);await audioEl.play();
-  statusEl.textContent=doRecord?'Recording Story 30s…':'Previewing audio-envelope collage…';
+  if(audioMode==='wav'){
+    audioEl.onended=()=>stopAll(true);await audioEl.play();
+    statusEl.textContent=doRecord?'Recording Story 30s…':'Previewing WAV audio-reactive collage…';
+  }else{
+    statusEl.textContent=doRecord?'Recording LIVE Generator + Visual for 30s…':'LIVE Generator Visual running — STOPで終了';
+  }
   raf=requestAnimationFrame(drawFrame);
 }
 function stopAll(natural=false){
   if(!previewing&&!recording)return;
-  previewing=false;cancelAnimationFrame(raf);stopBtn.disabled=true;if(audioEl)audioEl.pause();
+  previewing=false;cancelAnimationFrame(raf);stopBtn.disabled=true;if(audioMode==='wav'&&audioEl)audioEl.pause();
   if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();
   recording=false;ready();if(!natural)statusEl.textContent='Stopped.';
 }
@@ -518,4 +587,6 @@ $('#randomizeBtn').onclick=()=>{
   bright.value=Math.round(rand(10,38));trail.value=Math.round(rand(8,42));blur.value=Math.round(rand(0,38));
   transitionStyle.value=['soft','dynamic','sparse'][Math.floor(Math.random()*3)];updateLabels();
 };
-canvas.width=1080;canvas.height=1920;ready();
+canvas.width=1080;canvas.height=1920;
+if(new URLSearchParams(location.search).get('studio')==='1')setAudioMode('live');else setAudioMode('wav');
+ready();
