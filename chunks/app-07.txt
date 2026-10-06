@@ -56,17 +56,96 @@ function dailyChooseSourceSubset(){
 function dailySourceKey(ids){return [...ids].sort().join('+')}
 function dailySourceNames(ids){return ids.map(id=>MATERIALS.get(id)?.name||id)}
 
-function dailyMakeCandidate(){
+const DAILY_PROFILES={
+  A:{name:'AMBIENT / SPACE'},
+  B:{name:'GROOVE / RHYTHM'},
+  C:{name:'EXPERIMENTAL / MUTATION'}
+};
+function dailyRandRange(min,max){return min+rand()*(max-min)}
+function dailyMakeCandidate(label='A'){
   const ambient=dailySampleValues(configs,randomRanges),rhythm=dailySampleValues(rhythmConfigs,rhythmRandomRanges),mixer=dailySampleValues(mixerConfigs,mixerRandomRanges);
-  const rhythmEnabled=rand()<.72;
-  if(rand()<.30)mixer.e808mix=Math.min(mixer.e808mix,.12+rand()*.16);
-  else if(rand()<.28)mixer.e808mix=Math.max(mixer.e808mix,.62+rand()*.23);
-  if(!rhythmEnabled){ambient.ma=Math.max(ambient.ma,.32+rand()*.42);ambient.density=Math.min(ambient.density,.62+rand()*.18)}
+  let rhythmEnabled=rand()<.72;
+  let divisions=[4,3,5,7];
+
+  if(label==='A'){
+    rhythmEnabled=rand()<.12;
+    ambient.tempo=dailyRandRange(34,72);
+    ambient.density=dailyRandRange(.07,.42);
+    ambient.grain=dailyRandRange(4.2,10.8);
+    ambient.ma=dailyRandRange(.48,.90);
+    ambient.continuity=dailyRandRange(.66,.96);
+    ambient.pitch=dailyRandRange(0,4.2);
+    ambient.reverb=dailyRandRange(.34,.82);
+    ambient.delay=dailyRandRange(.03,.15);
+    mixer.sampleRhythm=dailyRandRange(.04,.30);
+    mixer.e808mix=dailyRandRange(.01,.15);
+    mixer.e808bass=dailyRandRange(.05,.28);
+  }else if(label==='B'){
+    rhythmEnabled=true;
+    ambient.tempo=dailyRandRange(72,128);
+    ambient.density=dailyRandRange(.38,1.05);
+    ambient.grain=dailyRandRange(.28,2.8);
+    ambient.ma=dailyRandRange(.06,.32);
+    ambient.continuity=dailyRandRange(.28,.72);
+    rhythm.density=dailyRandRange(.62,1.12);
+    rhythm.complexity=dailyRandRange(.32,.78);
+    rhythm.mutation=dailyRandRange(.16,.56);
+    rhythm.slice=dailyRandRange(.12,1.15);
+    rhythm.space=dailyRandRange(.12,.48);
+    rhythm.breaks=dailyRandRange(.04,.32);
+    mixer.sampleRhythm=dailyRandRange(1.02,1.58);
+    mixer.e808mix=dailyRandRange(.52,.88);
+    mixer.e808bass=dailyRandRange(.38,.84);
+    divisions=[4,3,5];
+  }else{
+    rhythmEnabled=rand()<.68;
+    ambient.tempo=dailyRandRange(38,148);
+    ambient.density=dailyRandRange(.22,1.35);
+    ambient.grain=dailyRandRange(.12,5.4);
+    ambient.ma=dailyRandRange(.14,.74);
+    ambient.continuity=dailyRandRange(.12,.62);
+    ambient.drift=dailyRandRange(.52,.92);
+    ambient.pitch=dailyRandRange(5.2,12);
+    ambient.reverb=dailyRandRange(.08,.72);
+    rhythm.density=dailyRandRange(.28,1.08);
+    rhythm.complexity=dailyRandRange(.58,.96);
+    rhythm.mutation=dailyRandRange(.68,.98);
+    rhythm.grooveDrift=dailyRandRange(.66,.98);
+    rhythm.slice=dailyRandRange(.03,.72);
+    rhythm.pitch=dailyRandRange(7,17);
+    rhythm.breaks=dailyRandRange(.34,.78);
+    mixer.sampleRhythm=dailyRandRange(.36,1.42);
+    mixer.e808mix=dailyRandRange(.12,.82);
+    divisions=[3,5,7];
+  }
+
   const groovePrimary=GROOVE_KEYS[Math.floor(rand()*GROOVE_KEYS.length)];
   const others=GROOVE_KEYS.filter(x=>x!==groovePrimary),grooveSecondary=others[Math.floor(rand()*others.length)];
-  const divisions=[4,3,5,7],division=divisions[Math.floor(rand()*divisions.length)];
+  const division=divisions[Math.floor(rand()*divisions.length)];
   const sourceMaterials=dailyChooseSourceSubset();
-  return {ambient,rhythm,mixer,rhythmEnabled,groovePrimary,grooveSecondary,division,sourceMaterials};
+  return {profile:label,ambient,rhythm,mixer,rhythmEnabled,groovePrimary,grooveSecondary,division,sourceMaterials};
+}
+function dailyClampValue(bank,id,min,max,cfg){
+  if(bank[id]==null)return;
+  bank[id]=clamp(bank[id],min,max);
+  if(cfg)bank[id]=snapConfigValue(bank[id],cfg);
+}
+function dailyReinforceProfile(label){
+  if(label==='A'){
+    dailyClampValue(state,'density',.05,.52,configs.density);dailyClampValue(state,'grain',3.4,12,configs.grain);
+    dailyClampValue(state,'ma',.42,.94,configs.ma);dailyClampValue(state,'pitch',0,5,configs.pitch);
+    dailyClampValue(mixerState,'sampleRhythm',0,.38,mixerConfigs.sampleRhythm);dailyClampValue(mixerState,'e808mix',0,.20,mixerConfigs.e808mix);
+  }else if(label==='B'){
+    dailyClampValue(state,'grain',.18,3.4,configs.grain);dailyClampValue(state,'ma',0,.38,configs.ma);
+    dailyClampValue(rhythmState,'density',.52,1.2,rhythmConfigs.density);dailyClampValue(rhythmState,'mutation',.10,.64,rhythmConfigs.mutation);
+    dailyClampValue(mixerState,'sampleRhythm',.88,1.66,mixerConfigs.sampleRhythm);dailyClampValue(mixerState,'e808mix',.42,.95,mixerConfigs.e808mix);
+    if(!rhythmOn)toggleRhythm();
+  }else if(label==='C'){
+    dailyClampValue(state,'drift',.42,1,configs.drift);dailyClampValue(state,'pitch',4.6,12,configs.pitch);
+    dailyClampValue(rhythmState,'complexity',.50,1,rhythmConfigs.complexity);dailyClampValue(rhythmState,'mutation',.60,1,rhythmConfigs.mutation);
+    dailyClampValue(rhythmState,'grooveDrift',.58,1,rhythmConfigs.grooveDrift);dailyClampValue(rhythmState,'breaks',.28,.9,rhythmConfigs.breaks);
+  }
+  applyGlobals();
 }
 function dailyFingerprint(c){
   const n=(v,cfg)=>clamp(toNorm(v,cfg),0,1);
@@ -78,21 +157,21 @@ function dailyFingerprint(c){
     n(c.rhythm.slice,rhythmConfigs.slice),n(c.rhythm.pitch,rhythmConfigs.pitch),n(c.rhythm.space,rhythmConfigs.space),
     n(c.mixer.sampleRhythm,mixerConfigs.sampleRhythm),n(c.mixer.e808mix,mixerConfigs.e808mix),
     n(c.mixer.e808bass,mixerConfigs.e808bass),n(c.mixer.bassTone,mixerConfigs.bassTone)
-  ],rhythm:c.rhythmEnabled?1:0,groove:c.groovePrimary,secondary:c.grooveSecondary,division:c.division,sourceKey:dailySourceKey(c.sourceMaterials||[])};
+  ],profile:c.profile||'A',rhythm:c.rhythmEnabled?1:0,groove:c.groovePrimary,secondary:c.grooveSecondary,division:c.division,sourceKey:dailySourceKey(c.sourceMaterials||[])};
 }
 function dailyCharacterDistance(a,b){
   if(!a||!b||!Array.isArray(a.v)||!Array.isArray(b.v))return 1;
   const len=Math.min(a.v.length,b.v.length);let sum=0;for(let i=0;i<len;i++)sum+=Math.abs(a.v[i]-b.v[i]);
-  let d=len?sum/len:0;if(a.rhythm!==b.rhythm)d+=.14;if(a.groove!==b.groove)d+=.11;if(a.secondary!==b.secondary)d+=.05;if(a.division!==b.division)d+=.07;if(a.sourceKey!==b.sourceKey)d+=.18;return d;
+  let d=len?sum/len:0;if(a.profile!==b.profile)d+=.22;if(a.rhythm!==b.rhythm)d+=.14;if(a.groove!==b.groove)d+=.11;if(a.secondary!==b.secondary)d+=.05;if(a.division!==b.division)d+=.07;if(a.sourceKey!==b.sourceKey)d+=.18;return d;
 }
 function allPastCharacters(){
   const archive=dailyNoveltyArchive.map(x=>x.character).filter(Boolean);
   return [...dailyCharacterHistory,...archive];
 }
-function dailyChooseCharacter(){
+function dailyChooseCharacter(label){
   const past=allPastCharacters();let best=null,bestScore=-1;
   for(let i=0;i<96;i++){
-    const candidate=dailyMakeCandidate(),fingerprint=dailyFingerprint(candidate);
+    const candidate=dailyMakeCandidate(label),fingerprint=dailyFingerprint(candidate);
     const score=past.length?Math.min(...past.map(h=>dailyCharacterDistance(fingerprint,h))):1;
     if(score>bestScore){bestScore=score;best={candidate,fingerprint,score}}
   }
@@ -147,7 +226,7 @@ function dailyNoveltyScore(character,audio){
 function dailySnapshot(label,duration){
   return {
     createdAt:new Date().toISOString(),label,durationSeconds:duration,
-    audioFormat:{container:'WAV',encoding:'PCM',bitDepth:16,sampleRate:44100,channels:2},character:dailyCurrentCharacter,
+    audioFormat:{container:'WAV',encoding:'PCM',bitDepth:16,sampleRate:44100,channels:2},profile:DAILY_PROFILES[label]?.name||label,character:dailyCurrentCharacter,
     sourceMaterials:[...(dailyMaterialSubset||[])],sourceNames:dailySourceNames([...(dailyMaterialSubset||[])]),
     ambient:{...state},rhythm:{...rhythmState},mixer:{...mixerState},
     groove:{focus:grooveFocus,primary:groovePrimary,secondary:grooveSecondary,blend:grooveBlendAmount,division:currentDivision},
@@ -249,13 +328,14 @@ async function dailyRecordOne(label,index){
   if(!ctx||!master)throw new Error('Audio engine is unavailable');
   const maxAttempts=6,noveltyThreshold=.115;
   for(let attempt=1;attempt<=maxAttempts&&!dailyCancelRequested;attempt++){
-    const picked=dailyChooseCharacter();dailyCurrentCharacter=picked.fingerprint;dailyApplyCharacter(picked.candidate);
+    const picked=dailyChooseCharacter(label);dailyCurrentCharacter=picked.fingerprint;dailyApplyCharacter(picked.candidate);dailyReinforceProfile(label);
     const duration=Math.round(120+rand()*40);beginDailyPcmCapture();
     const started=Date.now(),status=$('#dailyStatus');let nextSceneAt=8+rand()*12,scene=1;
     while((Date.now()-started)<duration*1000&&!dailyCancelRequested){
       const elapsed=Math.floor((Date.now()-started)/1000),left=Math.max(0,duration-elapsed);
       if(elapsed>=nextSceneAt){allRandomMorph();dailyForceSourceChange();if(rand()<.68)newGroove(true);scene++;nextSceneAt+=8+rand()*12}
-      if(status)status.textContent='TRACK '+label+' / 3 — '+dailySourceNames([...(dailyMaterialSubset||[])]).join(' + ')+' · attempt '+attempt+' · scene '+scene+' · novelty archive '+dailyNoveltyArchive.length+' · MASTER -10 LUFS / -1 dB · 44.1kHz/16bit · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+      dailyReinforceProfile(label);
+      if(status)status.textContent='TRACK '+label+' / 3 — '+DAILY_PROFILES[label].name+' · '+dailySourceNames([...(dailyMaterialSubset||[])]).join(' + ')+' · attempt '+attempt+' · scene '+scene+' · novelty archive '+dailyNoveltyArchive.length+' · MASTER -10 LUFS / -1 dB · 44.1kHz/16bit · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
       await new Promise(r=>setTimeout(r,1000));
     }
     const captured=await endDailyPcmCapture();flushPhraseMemory();if(dailyCancelRequested||!captured)return false;
