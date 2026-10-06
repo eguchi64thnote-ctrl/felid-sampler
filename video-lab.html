@@ -17,13 +17,15 @@
   <div class="row main">
     <div>
       <div class="panel">
-        <div class="modeLine"><strong>MODE</strong><button id="storyModeBtn" class="active">STORY 30s</button></div>
+        <div class="modeLine"><strong>MODE</strong><button id="storyModeBtn" class="active">STORY / LIVE VISUAL</button></div>
+        <div class="modeLine" style="margin-top:10px"><strong>AUDIO SOURCE</strong><button id="wavModeBtn" class="active">WAV FILE</button><button id="liveModeBtn">LIVE GENERATOR</button><button id="connectLiveBtn">CONNECT LIVE</button></div>
+        <div id="liveInfo" class="status">LIVE GENERATORはStudioページ内でGeneratorをPLAYしてから接続します。</div>
 
-        <div class="label" style="margin-top:14px">1. WAVを選択</div>
+        <div id="wavSourceBlock"><div class="label" style="margin-top:14px">1. WAVを選択</div>
         <label class="file"><input id="audioInput" type="file" accept="audio/wav,audio/*"></label>
         <div id="segmentInfo" class="segment">WAVを選ぶと30秒区間を自動解析します。</div>
         <div class="progress"><i id="analysisProgress"></i></div>
-        <div class="actions"><button id="repickBtn" disabled>RE-PICK 30s</button></div>
+        <div class="actions"><button id="repickBtn" disabled>RE-PICK 30s</button></div></div>
 
         <div class="label" style="margin-top:14px">2. 写真を複数選択</div>
         <label class="file"><input id="imageInput" type="file" accept="image/*" multiple></label>
@@ -31,7 +33,7 @@
 
         <div class="actions">
           <button id="previewBtn" class="primary" disabled>PREVIEW 30s</button>
-          <button id="recordBtn" disabled>RECORD STORY</button>
+          <button id="recordBtn" disabled>RECORD 30s</button>
           <button id="stopBtn" disabled>STOP</button>
         </div>
         <div id="status" class="status">WAVと写真を選択してください。</div>
@@ -64,7 +66,7 @@
   </div>
 
   <div class="panel note">
-    STORY MODEは常に9:16 / 1080×1920 / 30秒です。WAV全体から、音量変化・アタック・高域イベント・静寂のバランスを評価して30秒を自動抽出します。映像は白いホワイトキューブを基調に、不均一な縦横グリッドへ写真を展示します。写真の縦横比は維持したまま枠に合わせてトリミングし、回転はしません。sharpな音ではパキッと展示替え、softな音ではアタック／リリースに沿ってフェードします。
+    WAV MODEは9:16 / 1080×1920 / 30秒です。LIVE GENERATOR MODEではGeneratorの現在の音をリアルタイム解析し、PREVIEWは連続動作、RECORDは30秒で自動停止します。WAV全体から、音量変化・アタック・高域イベント・静寂のバランスを評価して30秒を自動抽出します。映像は白いホワイトキューブを基調に、不均一な縦横グリッドへ写真を展示します。写真の縦横比は維持したまま枠に合わせてトリミングし、回転はしません。sharpな音ではパキッと展示替え、softな音ではアタック／リリースに沿ってフェードします。
   </div>
 </div>
 <script src="/video-lab.js" defer></script>
