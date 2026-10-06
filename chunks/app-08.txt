@@ -216,7 +216,7 @@ function randomizeDefaultSampleSelection(){
   defaultSampleEvolutionNextAt=performance.now()+30000+rand()*20000;
 }
 function updateEvolvingSampleSelection(now=performance.now()){
-  if(!defaultSampleEvolutionActive||!evolving||dailyVarietyMode||now<defaultSampleEvolutionNextAt)return;
+  if(!defaultSampleEvolutionActive||!evolving||!running||dailyVarietyMode||now<defaultSampleEvolutionNextAt)return;
   const mats=[...MATERIALS.values()];
   const selected=mats.filter(m=>m.enabled),available=mats.filter(m=>!m.enabled);
   if(selected.length&&selected.length<=3&&available.length){
