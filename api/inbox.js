@@ -74,7 +74,7 @@ export default async function handler(req, res) {
       res.setHeader('cache-control','no-store');
       return res.status(200).send(shell(`
         <header><h1>FeLid Daily Tracks Inbox</h1><div class="meta">Archive · <span class="accent">${sorted.length} day${sorted.length===1?'':'s'}</span> · private</div></header>
-        <div class="toolbar"><a class="button" href="/inbox?key=${keyQ}&date=${tokyoDate()}">TODAY</a></div>
+        <div class="toolbar"><a class="button" href="/inbox?key=${keyQ}&date=${tokyoDate()}">TODAY</a><a class="button" href="/video-lab">VIDEO LAB</a></div>
         <div class="days">${cards}</div>
         <div class="foot">過去ファイルは自動削除しません。日付をタップすると、その日の06:00 / 12:00 / 16:00に生成されたA・B・Cを確認できます。</div>
       `));
@@ -123,6 +123,7 @@ export default async function handler(req, res) {
       <header><h1>FeLid Daily Tracks Inbox</h1><div class="meta">${esc(date)} · <span class="accent">${total}/9 tracks ready</span> · private archive</div></header>
       <div class="toolbar">
         <a class="button" href="/inbox?key=${keyQ}">← ALL DATES</a>
+        <a class="button" href="/video-lab">VIDEO LAB</a>
         <a class="button" href="/inbox?key=${keyQ}&date=${prev}">PREV</a>
         <a class="button" href="/inbox?key=${keyQ}&date=${next}">NEXT</a>
       </div>
