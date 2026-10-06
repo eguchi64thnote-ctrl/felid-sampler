@@ -82,39 +82,39 @@ export default async function handler(req, res) {
 
     const date=dateParam;
     const blobs=await listAll('daily/'+date+'/');
-    const slots=[
-      {id:'0600',label:'MORNING · 06:00'},
-      {id:'1200',label:'NOON · 12:00'},
-      {id:'1600',label:'AFTERNOON · 16:00'},
-    ];
-    const tracks=['A','B','C'];
+    const slotOrder=['0600','1200','1600'];
+    const profileOrder=['AmbientSpace','GrooveRhythm','ExperimentalMutation'];
+    const profileLetter={AmbientSpace:'A',GrooveRhythm:'B',ExperimentalMutation:'C'};
     const found=new Map();
 
     for(const blob of blobs.filter(b=>b.pathname.endsWith('.wav'))){
       const name=blob.pathname.split('/').pop()||'';
       const slotMatch=blob.pathname.match(/\/daily\/[^/]+\/(0600|1200|1600)\//)||name.match(/_(0600|1200|1600)_/);
       if(!slotMatch)continue;
-      const letterMatch=name.match(/_([ABC])(?:_|\.)/i);
-      if(!letterMatch)continue;
-      const slot=slotMatch[1],track=letterMatch[1].toUpperCase();
-      const validUntil=Date.now()+24*60*60*1000;
+      let profile=profileOrder.find(p=>name.includes('_'+p+'_'));
+      let letter=profile?profileLetter[profile]:null;
+      if(!letter){
+        const legacy=name.match(/_([ABC])(?:_|\.)/i);
+        if(legacy){letter=legacy[1].toUpperCase();profile=letter==='A'?'AmbientSpace':letter==='B'?'GrooveRhythm':'ExperimentalMutation'}
+      }
+      if(!letter||!profile)continue;
+      const slot=slotMatch[1],validUntil=Date.now()+24*60*60*1000;
       const token=await issueSignedToken({pathname:blob.pathname,operations:['get'],validUntil});
       const signed=await presignUrl(token,{operation:'get',pathname:blob.pathname,access:'private',validUntil});
-      found.set(slot+':'+track,{name,url:signed.presignedUrl});
+      found.set(slot+':'+letter,{name,url:signed.presignedUrl,slot,letter,profile});
     }
 
-    const sections=slots.map(slot=>{
-      const rows=tracks.map(track=>{
-        const item=found.get(slot.id+':'+track);
-        if(!item)return `<div class="track pending"><div class="trackTop"><strong>${track}</strong><span>not generated yet</span></div></div>`;
-        return `<div class="track"><div class="trackTop"><strong>${track}</strong><span>${esc(item.name)}</span></div>
+    const rows=[];
+    for(const slot of slotOrder){
+      for(const profile of profileOrder){
+        const letter=profileLetter[profile],item=found.get(slot+':'+letter);
+        if(!item)continue;
+        rows.push(`<div class="track"><div class="trackTop"><strong>${esc(profile)}</strong><span>${esc(item.name)}</span></div>
           <audio controls preload="none" src="${esc(item.url)}"></audio>
-          <a class="download" href="${esc(item.url)}">OPEN / DOWNLOAD WAV</a></div>`;
-      }).join('');
-      const count=tracks.filter(track=>found.has(slot.id+':'+track)).length;
-      return `<section class="slot"><div class="slotHead"><h2>${slot.label}</h2><span>${count}/3</span></div><div class="tracks">${rows}</div></section>`;
-    }).join('');
-
+          <a class="download" href="${esc(item.url)}">OPEN / DOWNLOAD WAV</a></div>`);
+      }
+    }
+    const sections=rows.length?`<div class="tracks">${rows.join('')}</div>`:`<div class="empty">まだこの日のトラックはありません。</div>`;
     const total=[...found.keys()].length;
     const prev=addDays(date,-1),next=addDays(date,1);
     res.setHeader('content-type','text/html; charset=utf-8');
@@ -128,7 +128,7 @@ export default async function handler(req, res) {
         <a class="button" href="/inbox?key=${keyQ}&date=${next}">NEXT</a>
       </div>
       ${sections}
-      <div class="foot">06:00 / 12:00 / 16:00 に各3曲を自動生成。WAVはこの日付アーカイブに残り続けます。署名URLはページを開いた時点から24時間有効です。</div>
+      <div class="foot">06:00 / 12:00 / 16:00 に各3曲を自動生成。1日9曲を日付単位でまとめて表示します。WAVはこの日付アーカイブに残り続けます。署名URLはページを開いた時点から24時間有効です。</div>
     `));
   } catch(e) {
     console.error(e);
