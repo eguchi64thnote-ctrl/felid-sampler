@@ -45,6 +45,17 @@ async function addDailyNoveltyEntry(entry){
 function dailySampleValues(configMap,rangeMap){
   const out={};for(const [id,c] of Object.entries(configMap))out[id]=randomValue(c,rangeMap[id]);return out;
 }
+function dailySourceCandidates(){
+  return [...MATERIALS.values()].filter(m=>m.builtin&&m.enabled&&m.sampleIndices.some(i=>buffers[i]&&!SAMPLE_DATA[i]?.disabled));
+}
+function dailyChooseSourceSubset(){
+  const pool=dailySourceCandidates().slice(),count=Math.min(pool.length,1+Math.floor(rand()*3)),picked=[];
+  while(picked.length<count&&pool.length){const i=Math.floor(rand()*pool.length);picked.push(pool.splice(i,1)[0])}
+  return picked.map(m=>m.id);
+}
+function dailySourceKey(ids){return [...ids].sort().join('+')}
+function dailySourceNames(ids){return ids.map(id=>MATERIALS.get(id)?.name||id)}
+
 function dailyMakeCandidate(){
   const ambient=dailySampleValues(configs,randomRanges),rhythm=dailySampleValues(rhythmConfigs,rhythmRandomRanges),mixer=dailySampleValues(mixerConfigs,mixerRandomRanges);
   const rhythmEnabled=rand()<.72;
@@ -54,7 +65,8 @@ function dailyMakeCandidate(){
   const groovePrimary=GROOVE_KEYS[Math.floor(rand()*GROOVE_KEYS.length)];
   const others=GROOVE_KEYS.filter(x=>x!==groovePrimary),grooveSecondary=others[Math.floor(rand()*others.length)];
   const divisions=[4,3,5,7],division=divisions[Math.floor(rand()*divisions.length)];
-  return {ambient,rhythm,mixer,rhythmEnabled,groovePrimary,grooveSecondary,division};
+  const sourceMaterials=dailyChooseSourceSubset();
+  return {ambient,rhythm,mixer,rhythmEnabled,groovePrimary,grooveSecondary,division,sourceMaterials};
 }
 function dailyFingerprint(c){
   const n=(v,cfg)=>clamp(toNorm(v,cfg),0,1);
@@ -66,12 +78,12 @@ function dailyFingerprint(c){
     n(c.rhythm.slice,rhythmConfigs.slice),n(c.rhythm.pitch,rhythmConfigs.pitch),n(c.rhythm.space,rhythmConfigs.space),
     n(c.mixer.sampleRhythm,mixerConfigs.sampleRhythm),n(c.mixer.e808mix,mixerConfigs.e808mix),
     n(c.mixer.e808bass,mixerConfigs.e808bass),n(c.mixer.bassTone,mixerConfigs.bassTone)
-  ],rhythm:c.rhythmEnabled?1:0,groove:c.groovePrimary,secondary:c.grooveSecondary,division:c.division};
+  ],rhythm:c.rhythmEnabled?1:0,groove:c.groovePrimary,secondary:c.grooveSecondary,division:c.division,sourceKey:dailySourceKey(c.sourceMaterials||[])};
 }
 function dailyCharacterDistance(a,b){
   if(!a||!b||!Array.isArray(a.v)||!Array.isArray(b.v))return 1;
   const len=Math.min(a.v.length,b.v.length);let sum=0;for(let i=0;i<len;i++)sum+=Math.abs(a.v[i]-b.v[i]);
-  let d=len?sum/len:0;if(a.rhythm!==b.rhythm)d+=.14;if(a.groove!==b.groove)d+=.11;if(a.secondary!==b.secondary)d+=.05;if(a.division!==b.division)d+=.07;return d;
+  let d=len?sum/len:0;if(a.rhythm!==b.rhythm)d+=.14;if(a.groove!==b.groove)d+=.11;if(a.secondary!==b.secondary)d+=.05;if(a.division!==b.division)d+=.07;if(a.sourceKey!==b.sourceKey)d+=.18;return d;
 }
 function allPastCharacters(){
   const archive=dailyNoveltyArchive.map(x=>x.character).filter(Boolean);
@@ -91,6 +103,7 @@ function dailyRememberCharacter(fp){
   try{localStorage.setItem(dailyCharacterMemoryKey,JSON.stringify(dailyCharacterHistory))}catch(e){}
 }
 function dailyApplyCharacter(c){
+  dailyMaterialSubset=new Set(c.sourceMaterials||[]);
   for(const [id,cfg] of Object.entries(configs)){if(locked.has(id))continue;state[id]=snapConfigValue(c.ambient[id],cfg);syncControl(id,state,cfg)}
   for(const [id,cfg] of Object.entries(rhythmConfigs)){if(rhythmLocked.has(id))continue;rhythmState[id]=snapConfigValue(c.rhythm[id],cfg);syncRhythmControl(id)}
   for(const [id,cfg] of Object.entries(mixerConfigs)){if(mixerLocked.has(id))continue;mixerState[id]=snapConfigValue(c.mixer[id],cfg);syncMixerControl(id)}
@@ -135,6 +148,7 @@ function dailySnapshot(label,duration){
   return {
     createdAt:new Date().toISOString(),label,durationSeconds:duration,
     audioFormat:{container:'WAV',encoding:'PCM',bitDepth:16,sampleRate:44100,channels:2},character:dailyCurrentCharacter,
+    sourceMaterials:[...(dailyMaterialSubset||[])],sourceNames:dailySourceNames([...(dailyMaterialSubset||[])]),
     ambient:{...state},rhythm:{...rhythmState},mixer:{...mixerState},
     groove:{focus:grooveFocus,primary:groovePrimary,secondary:grooveSecondary,blend:grooveBlendAmount,division:currentDivision},
     randomWalk:evolving
@@ -241,7 +255,7 @@ async function dailyRecordOne(label,index){
     while((Date.now()-started)<duration*1000&&!dailyCancelRequested){
       const elapsed=Math.floor((Date.now()-started)/1000),left=Math.max(0,duration-elapsed);
       if(elapsed>=nextSceneAt){allRandomMorph();dailyForceSourceChange();if(rand()<.68)newGroove(true);scene++;nextSceneAt+=8+rand()*12}
-      if(status)status.textContent='TRACK '+label+' / 3 — attempt '+attempt+' · scene '+scene+' · novelty archive '+dailyNoveltyArchive.length+' · MASTER -10 LUFS / -1 dB · 44.1kHz/16bit · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+      if(status)status.textContent='TRACK '+label+' / 3 — '+dailySourceNames([...(dailyMaterialSubset||[])]).join(' + ')+' · attempt '+attempt+' · scene '+scene+' · novelty archive '+dailyNoveltyArchive.length+' · MASTER -10 LUFS / -1 dB · 44.1kHz/16bit · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
       await new Promise(r=>setTimeout(r,1000));
     }
     const captured=await endDailyPcmCapture();flushPhraseMemory();if(dailyCancelRequested||!captured)return false;
@@ -267,7 +281,7 @@ async function runDaily3(){
     if(!dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent=completed===3?'TODAY\'S 3 TRACKS READY — novelty-checked 44.1kHz / 16bit WAV':('NOVELTY GATE STOPPED — '+completed+'/3 tracks passed; run again for a new attempt')}
   }catch(e){console.error('daily tracks',e);if(dailyCapture)abortDailyPcmCapture();const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACK ERROR — '+(e?.message||e)}
   finally{
-    dailyBatchRunning=false;dailyVarietyMode=false;flushPhraseMemory();if(go)go.disabled=false;if(cancel)cancel.disabled=true;
+    dailyBatchRunning=false;dailyVarietyMode=false;dailyMaterialSubset=null;flushPhraseMemory();if(go)go.disabled=false;if(cancel)cancel.disabled=true;
     if(running)stop();
     if(dailyCancelRequested){const s=$('#dailyStatus');if(s)s.textContent='DAILY TRACKS CANCELLED'}
   }
