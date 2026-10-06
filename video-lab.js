@@ -5,7 +5,7 @@ const intensity=$('#intensity'),maxLayers=$('#maxLayers'),zoom=$('#zoom'),shake=
 let audioFile=null,audioUrl=null,decodedBuffer=null,audioEl=null,audioCtx=null,sourceNode=null,analyser=null,audioDest=null;
 let images=[],raf=0,mediaRecorder=null,chunks=[],previewing=false,recording=false;
 let selectedStart=0,selectedDuration=30,analysisCandidates=[];
-let visualLayers=[],lastEnergy=0,lastHigh=0,beatFloor=.08,lastSpawn=0,flashAlpha=0,energyHistory=[];
+let visualLayers=[],gridRects=[],lastEnergy=0,lastHigh=0,beatFloor=.08,lastSpawn=0,flashAlpha=0,energyHistory=[],lastImageIndex=-1;
 
 function fmt(sec){sec=Math.max(0,sec||0);const m=Math.floor(sec/60),s=Math.floor(sec%60);return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
 function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
@@ -125,58 +125,109 @@ function classifyEnvelope(s){
   if(softScore>.15&&s.onset<.055)return 'soft';
   return 'neutral';
 }
-function randomImage(exclude=-1){if(images.length<=1)return 0;let i=exclude;for(let n=0;n<10&&i===exclude;n++)i=Math.floor(Math.random()*images.length);return i<0?0:i}
-const anchors=[[.18,.18],[.5,.18],[.82,.2],[.2,.48],[.5,.5],[.8,.5],[.18,.8],[.5,.8],[.82,.8],[.34,.34],[.66,.66]];
-function makeCrop(img,mode){
-  const cropZoom=mode==='sharp'?rand(1.65,3.2):rand(1.25,2.5);
-  const sw=Math.max(32,img.naturalWidth/cropZoom),sh=Math.max(32,img.naturalHeight/cropZoom);
-  return {sx:rand(0,Math.max(1,img.naturalWidth-sw)),sy:rand(0,Math.max(1,img.naturalHeight-sh)),sw,sh};
+function randomImage(exclude=-1){
+  if(images.length<=1)return 0;
+  let i=exclude;
+  for(let n=0;n<12&&i===exclude;n++)i=Math.floor(Math.random()*images.length);
+  lastImageIndex=i<0?0:i;
+  return lastImageIndex;
+}
+function rectArea(r){return r.w*r.h}
+function generateRandomGrid(){
+  const desired=clamp(Math.round(Number(maxLayers.value)+rand(-1.5,1.5)),3,10);
+  let rects=[{x:0,y:0,w:1,h:1,id:0}];
+  let guard=0;
+  while(rects.length<desired&&guard++<80){
+    const candidates=rects
+      .map((r,i)=>({r,i,score:rectArea(r)*(0.65+Math.random()*.7)}))
+      .filter(o=>o.r.w>.28||o.r.h>.25)
+      .sort((a,b)=>b.score-a.score);
+    if(!candidates.length)break;
+    const {r,i}=candidates[0];
+    let vertical;
+    if(r.w/r.h>1.25)vertical=true;
+    else if(r.h/r.w>1.25)vertical=false;
+    else vertical=Math.random()<.5;
+    const ratio=rand(.30,.70);
+    let a,b;
+    if(vertical){
+      if(r.w<.34)continue;
+      a={x:r.x,y:r.y,w:r.w*ratio,h:r.h};
+      b={x:r.x+r.w*ratio,y:r.y,w:r.w*(1-ratio),h:r.h};
+    }else{
+      if(r.h<.28)continue;
+      a={x:r.x,y:r.y,w:r.w,h:r.h*ratio};
+      b={x:r.x,y:r.y+r.h*ratio,w:r.w,h:r.h*(1-ratio)};
+    }
+    rects.splice(i,1,a,b);
+  }
+  gridRects=rects.map((r,i)=>({...r,id:i}));
+}
+function chooseGridCell(){
+  if(!gridRects.length)generateRandomGrid();
+  const occupied=new Set(visualLayers.filter(l=>l.releaseStart===null).map(l=>l.cellId));
+  const empty=gridRects.filter(r=>!occupied.has(r.id));
+  if(empty.length)return pick(empty);
+  const weights=gridRects.map(r=>({r,w:.35+rectArea(r)*2.2+Math.random()*.45}));
+  const total=weights.reduce((s,o)=>s+o.w,0);let p=Math.random()*total;
+  for(const o of weights){p-=o.w;if(p<=0)return o.r}
+  return gridRects[gridRects.length-1];
+}
+function computeCoverCrop(img,targetAspect,mode){
+  const iw=img.naturalWidth,ih=img.naturalHeight;
+  let sw=iw,sh=ih;
+  if(iw/ih>targetAspect)sw=ih*targetAspect;
+  else sh=iw/targetAspect;
+
+  const extraZoom=mode==='sharp'?rand(1.10,1.85):mode==='soft'?rand(1.02,1.42):rand(1.05,1.55);
+  sw/=extraZoom;sh/=extraZoom;
+  sw=Math.min(iw,Math.max(24,sw));sh=Math.min(ih,Math.max(24,sh));
+
+  const maxX=Math.max(0,iw-sw),maxY=Math.max(0,ih-sh);
+  const biasX=rand(.08,.92),biasY=rand(.08,.92);
+  return {sx:maxX*biasX,sy:maxY*biasY,sw,sh};
+}
+function releaseCell(cellId,mode,now){
+  for(const l of visualLayers){
+    if(l.cellId!==cellId||l.releaseStart!==null)continue;
+    l.releaseStart=now;
+    l.fadeOutMs=mode==='sharp'?0:Math.max(180,l.fadeOutMs);
+  }
 }
 function spawnLayer(mode,s,now,kind='main'){
-  const style=transitionStyle.value,inten=Number(intensity.value)/100,anchor=pick(anchors),imgIndex=randomImage(),img=images[imgIndex].img;
+  if(!gridRects.length)generateRandomGrid();
+  const cell=chooseGridCell(),style=transitionStyle.value,inten=Number(intensity.value)/100;
+  releaseCell(cell.id,mode,now);
+
+  const imgIndex=randomImage(lastImageIndex),img=images[imgIndex].img;
+  const W=canvas.width,H=canvas.height,gutter=clamp(14+(1-inten)*18,10,30);
+  const cellW=Math.max(20,W*cell.w-gutter*2),cellH=Math.max(20,H*cell.h-gutter*2);
+  const targetAspect=cellW/cellH;
+  const crop=computeCoverCrop(img,targetAspect,mode);
   const sharp=mode==='sharp',soft=mode==='soft';
-  let width=sharp?rand(.58,.98):soft?rand(.52,.90):rand(.50,.84);
-  if(kind==='accent')width*=rand(.72,.94);
-  width*=.88+inten*.24;
-  const aspect=pick([.58,.72,.86,1,1.18,1.38,1.62]);
-  let height=clamp(width/aspect,.28,.82);
-  if(style==='dynamic'){width=clamp(width*1.08,.35,1.05);height=clamp(height*1.05,.26,.88)}
-  if(style==='sparse'){width*=.92;height*=.92}
-  const releaseControl=Number(trail.value)/100;
-  const fadeInMs=sharp?0:soft?rand(180,520):rand(50,160);
-  const life=sharp?rand(520,1250):soft?rand(1600,3600):rand(1000,2100);
-  const fadeOutMs=sharp?rand(0,90):soft?rand(280,900)*(1+releaseControl*.8):rand(120,360);
-  const crop=makeCrop(img,mode);
+
+  let fadeInMs=sharp?0:soft?rand(180,520):rand(60,150);
+  let life=sharp?rand(500,1250):soft?rand(1600,3500):rand(950,2000);
+  let fadeOutMs=sharp?0:soft?rand(300,900)*(1+Number(trail.value)/120):rand(100,300);
+  if(style==='dynamic'){life*=.82;fadeInMs*=.75;fadeOutMs*=.75}
+  if(style==='sparse'){life*=1.24;fadeInMs*=1.12;fadeOutMs*=1.18}
+
   visualLayers.push({
-    imgIndex,mode,kind,x:clamp(anchor[0]+rand(-.09,.09),.05,.95),y:clamp(anchor[1]+rand(-.09,.09),.05,.95),
-    width:clamp(width,.34,1.05),height:clamp(height,.26,.88),rot:sharp?rand(-11,11):rand(-5,5),
+    imgIndex,mode,kind,cellId:cell.id,rect:cell,crop,
     born:now,life,fadeInMs,fadeOutMs,releaseStart:null,spawnEnergy:s.energy,
-    blurStart:(Number(blur.value)/100)*(sharp?3:soft?16:8),driftX:soft?rand(-.025,.025):rand(-.008,.008),driftY:soft?rand(-.025,.025):rand(-.008,.008),
-    crop
+    blurStart:(Number(blur.value)/100)*(sharp?2:soft?12:6)
   });
-  trimLayers(now,mode);
-}
-function trimLayers(now,newMode){
-  const max=Number(maxLayers.value);
-  while(visualLayers.length>max){
-    const idx=visualLayers.findIndex(l=>l.mode==='sharp');
-    if(newMode==='sharp'||idx<0)visualLayers.splice(0,1);
-    else{
-      const target=visualLayers[idx];
-      if(target.releaseStart===null){target.releaseStart=now;target.fadeOutMs=Math.min(target.fadeOutMs,120)}
-      else visualLayers.splice(idx,1);
-      if(visualLayers.length>max)visualLayers.splice(0,1);
-    }
-  }
+
+  const hardMax=Math.max(gridRects.length+3,Number(maxLayers.value)+3);
+  while(visualLayers.length>hardMax)visualLayers.shift();
 }
 function updateReleases(s,now){
   for(const l of visualLayers){
     if(l.releaseStart!==null)continue;
-    const age=now-l.born;
-    if(age<120)continue;
-    const drop=(l.spawnEnergy-s.energy);
+    const age=now-l.born;if(age<120)continue;
+    const drop=l.spawnEnergy-s.energy;
     const fastDrop=drop>.08&&s.slope<-.018,softDrop=drop>.035&&s.slope<-.005;
-    if(l.mode==='sharp'&&fastDrop){l.releaseStart=now;l.fadeOutMs=rand(0,75)}
+    if(l.mode==='sharp'&&fastDrop){l.releaseStart=now;l.fadeOutMs=0}
     else if(l.mode==='soft'&&softDrop&&age>500){l.releaseStart=now;l.fadeOutMs=rand(320,850)*(1+Number(trail.value)/130)}
     else if(age>l.life){l.releaseStart=now}
   }
@@ -187,13 +238,14 @@ function updateEvents(s,now){
   const fxHit=s.highOnset>.038||(s.high>.38&&s.onset>.014),strong=s.low>.34&&s.onset>.018;
   const inten=Number(intensity.value)/100,style=transitionStyle.value;
   const minGap=style==='dynamic'?105:style==='sparse'?360:180;
+
   if(now-lastSpawn>minGap){
     if(fxHit){
-      spawnLayer('sharp',s,now,'accent');lastSpawn=now;flashAlpha=Math.max(flashAlpha,.018+.035*inten);
-      if(inten>.72&&Math.random()<.38)spawnLayer('sharp',s,now,'main');
+      spawnLayer('sharp',s,now,'accent');lastSpawn=now;flashAlpha=Math.max(flashAlpha,.01+.02*inten);
+      if(inten>.80&&Math.random()<.24)spawnLayer('sharp',s,now,'main');
     }else if(beatHit||strong){
       spawnLayer(env==='soft'?'soft':'sharp',s,now,'main');lastSpawn=now;
-    }else if(env==='soft'&&s.energy>beatFloor*.92&&Math.random()<.055+.08*inten){
+    }else if(env==='soft'&&s.energy>beatFloor*.92&&Math.random()<.045+.06*inten){
       spawnLayer('soft',s,now,'main');lastSpawn=now;
     }
   }
@@ -212,34 +264,38 @@ function layerAlpha(l,now){
   }
   return a;
 }
-function drawFragment(layer,now,s){
+function drawGalleryPiece(layer,now,s){
   const img=images[layer.imgIndex].img,W=canvas.width,H=canvas.height;
   const a=layerAlpha(layer,now);if(a<=.001)return;
-  const age=now-layer.born,t=clamp(age/Math.max(1,layer.life),0,1);
-  const attack=Math.min(1,s.onset*10+s.highOnset*6),zoomResp=Number(zoom.value)/100;
-  const scale=1+zoomResp*(layer.mode==='sharp'?attack*.055:(.012+s.low*.025));
-  const dw=W*layer.width*scale,dh=H*layer.height*scale;
-  const shakeAmt=(Number(shake.value)/100)*(layer.mode==='sharp'?(s.low*.5+attack*.8):(s.low*.22+attack*.15));
-  const jx=rand(-.01,.01)*shakeAmt,jy=rand(-.01,.01)*shakeAmt;
-  const cx=W*(layer.x+layer.driftX*t+jx),cy=H*(layer.y+layer.driftY*t+jy);
-  const blurPx=layer.blurStart*(1-clamp(age/Math.max(80,layer.fadeInMs||120),0,1));
-  const br=1+(Number(bright.value)/100)*(s.high*.16-s.low*.04+attack*.025);
-  ctx.save();ctx.translate(cx,cy);ctx.rotate(layer.rot*Math.PI/180);ctx.globalAlpha=a;
-  ctx.filter='brightness('+br.toFixed(3)+')'+(blurPx>.1?' blur('+blurPx.toFixed(1)+'px)':'');
-  ctx.shadowColor='rgba(0,0,0,.28)';ctx.shadowBlur=18;
+  const gutter=clamp(14+(1-Number(intensity.value)/100)*18,10,30);
+  const r=layer.rect;
+  const dx=W*r.x+gutter,dy=H*r.y+gutter,dw=Math.max(2,W*r.w-gutter*2),dh=Math.max(2,H*r.h-gutter*2);
+  const age=now-layer.born,blurPx=layer.blurStart*(1-clamp(age/Math.max(80,layer.fadeInMs||100),0,1));
+  const attack=Math.min(1,s.onset*10+s.highOnset*6);
+  const br=1+(Number(bright.value)/100)*(s.high*.10-s.low*.025+attack*.018);
   const c=layer.crop;
-  ctx.drawImage(img,c.sx,c.sy,c.sw,c.sh,-dw/2,-dh/2,dw,dh);
+
+  ctx.save();
+  ctx.globalAlpha=a;
+  ctx.filter='brightness('+br.toFixed(3)+')'+(blurPx>.1?' blur('+blurPx.toFixed(1)+'px)':'');
+  ctx.shadowColor='rgba(0,0,0,.10)';ctx.shadowBlur=10;ctx.shadowOffsetY=2;
+  ctx.drawImage(img,c.sx,c.sy,c.sw,c.sh,dx,dy,dw,dh);
   ctx.restore();
 }
 function renderLayers(now,s){
   const W=canvas.width,H=canvas.height;
-  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.globalAlpha=1;ctx.filter='none';ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.restore();
+
   visualLayers=visualLayers.filter(l=>{
     if(l.releaseStart===null)return now-l.born<l.life+2500;
     return now-l.releaseStart<Math.max(20,l.fadeOutMs+40);
   });
-  for(const l of visualLayers)drawFragment(l,now,s);
-  if(flashAlpha>.002){ctx.fillStyle='rgba(255,255,255,'+flashAlpha.toFixed(3)+')';ctx.fillRect(0,0,W,H);flashAlpha*=.68}
+  for(const l of visualLayers)drawGalleryPiece(l,now,s);
+
+  if(flashAlpha>.002){
+    ctx.fillStyle='rgba(255,255,255,'+flashAlpha.toFixed(3)+')';
+    ctx.fillRect(0,0,W,H);flashAlpha*=.62;
+  }
 }
 function drawFrame(now){
   if(!previewing||!analyser||!images.length)return;
@@ -252,7 +308,7 @@ function drawFrame(now){
 async function startPreview(doRecord=false){
   if(previewing)stopAll(false);
   await ensurePlaybackAudio();
-  visualLayers=[];lastEnergy=0;lastHigh=0;beatFloor=.08;lastSpawn=0;flashAlpha=0;energyHistory=[];
+  visualLayers=[];gridRects=[];lastEnergy=0;lastHigh=0;beatFloor=.08;lastSpawn=0;flashAlpha=0;energyHistory=[];lastImageIndex=-1;generateRandomGrid();
   previewing=true;recording=doRecord;stopBtn.disabled=false;previewBtn.disabled=true;recordBtn.disabled=true;repickBtn.disabled=true;downloadLink.classList.remove('show');
   audioEl.currentTime=selectedStart;
   if(doRecord){
