@@ -487,3 +487,9 @@ button{font-size:12px}
 .dailyResult a{color:#d9efbf;text-decoration:none}
 .dailyResult a:hover{text-decoration:underline}
 @media(max-width:640px){.dailyTrackHead{align-items:flex-start;flex-direction:column}.dailyTrackActions{width:100%}.dailyTrackActions button{flex:1}}
+
+/* Explicit generation modes */
+.modeButton{border-color:#3a3a3a;color:#9b9b94}
+.modeButton.on{border-color:var(--accent);color:var(--accent);background:#11160e}
+.modeItem{max-width:180px;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:850px){header .transport{grid-template-columns:repeat(2,minmax(0,1fr))}.modeItem{max-width:140px}}
