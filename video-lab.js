@@ -452,7 +452,7 @@ function stopAll(natural=false){
 }
 previewBtn.onclick=()=>startPreview(false);recordBtn.onclick=()=>startPreview(true);stopBtn.onclick=()=>stopAll(false);
 $('#randomizeBtn').onclick=()=>{
-  intensity.value=Math.round(rand(52,95));maxLayers.value=Math.round(rand(4,8));zoom.value=Math.round(rand(20,60));shake.value=Math.round(rand(2,20));
+  intensity.value=Math.round(rand(52,95));maxLayers.value=Math.round(rand(5,13));zoom.value=Math.round(rand(20,60));shake.value=Math.round(rand(2,20));
   bright.value=Math.round(rand(10,38));trail.value=Math.round(rand(8,42));blur.value=Math.round(rand(0,38));
   transitionStyle.value=['soft','dynamic','sparse'][Math.floor(Math.random()*3)];updateLabels();
 };
