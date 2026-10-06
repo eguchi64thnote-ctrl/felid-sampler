@@ -30,7 +30,12 @@ function setDivisionFocus(v){if(v!=='auto'&&!DIVISION_OPTIONS.includes(Number(v)
 document.querySelectorAll('#divisionGrid button').forEach(b=>b.onclick=()=>setDivisionFocus(b.dataset.division));
 updateDivisionButtons();updateDivisionReadout();
 function rhythmPlayableIndices(){const m=[];for(const mat of MATERIALS.values()){const g=GROUPS.get(mat.groupId);if(!g||!g.active||!mat.enabled||!materialAllowed(mat.id))continue;for(const i of mat.sampleIndices)if(buffers[i]&&!SAMPLE_DATA[i]?.disabled)m.push(i)}return m}
-function freshMagicSample(role){let arr=rhythmPlayableIndices();if(!arr.length)return -1;const rs=rhythmRoleState[role];
+function freshMagicSample(role){let arr=rhythmPlayableIndices();if(!arr.length)return -1;
+  if(typeof generationMode!=='undefined'&&generationMode==='minimal'&&arr.length>2){
+    const scored=arr.map(i=>{const m=SAMPLE_DATA[i]||{},c=analyseRhythmCandidates(i),avgOn=c.length?c.reduce((a,x)=>a+x.onset,0)/c.length:0,avgZ=c.length?c.reduce((a,x)=>a+x.zcr,0)/c.length:0;return {i,score:(m.rms||.08)*1.8+avgOn*1.15+avgZ*.22}}).sort((a,b)=>a.score-b.score);
+    arr=scored.slice(0,Math.max(2,Math.ceil(scored.length*.45))).map(x=>x.i);
+  }
+  const rs=rhythmRoleState[role];
   if(rs.sample>=0&&arr.includes(rs.sample)&&rand()>(dailyVarietyMode ? .52 : (.18+.55*rhythmState.mutation)))return rs.sample;
   if(dailyVarietyMode){const newer=arr.filter(i=>!dailyRecentSamples.includes(i));if(newer.length)arr=newer}
   let i=arr[Math.floor(rand()*arr.length)];for(let n=0;n<10&&(i===rs.sample||(dailyVarietyMode&&dailyRecentSamples.includes(i)));n++)i=arr[Math.floor(rand()*arr.length)];
