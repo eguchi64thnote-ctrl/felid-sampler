@@ -308,17 +308,27 @@ async function endDailyPcmCapture(){
   const rs=resampleLinearStereo(mastered.left,mastered.right,ctx.sampleRate,44100),blob=encodePcm16Wav(rs.left,rs.right,44100);
   return {blob,audio,mastering:mastered.mastering};
 }
+function dailyOutputSlot(){
+  const q=new URLSearchParams(location.search),s=q.get('slot');
+  if(/^\d{4}$/.test(s||''))return s;
+  const h=new Date().getHours();return h<9?'0600':h<15?'1200':'1700';
+}
+function dailyShortStamp(){
+  const d=new Date(),yy=String(d.getFullYear()).slice(-2),mm=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
+  return yy+mm+dd;
+}
+function dailyProfileFileName(label){return label==='A'?'AmbientSpace':label==='B'?'GrooveRhythm':'ExperimentalMutation'}
 function dailyRenderResult(label,blob,meta){
   const root=$('#dailyResults');if(!root)return;
   const url=URL.createObjectURL(blob);dailyUrls.push(url);
-  const stamp=dailyDateStamp(),secs=Math.round(meta.durationSeconds),m=Math.floor(secs/60),s=String(secs%60).padStart(2,'0');
-  const sr=44.1;
-  const audioName=stamp+'_'+label+'_'+m+'m'+s+'s_44k1_16bit.wav';
+  const stamp=dailyShortStamp(),slot=dailyOutputSlot(),profile=dailyProfileFileName(label),secs=Math.round(meta.durationSeconds),m=Math.floor(secs/60),s=String(secs%60).padStart(2,'0');
+  meta.outputSlot=slot;meta.outputProfile=profile;
+  const audioName=stamp+'_'+slot+'_'+profile+'_'+m+'m'+s+'s.wav';
   const jsonBlob=new Blob([JSON.stringify(meta,null,2)],{type:'application/json'});
   const jsonUrl=URL.createObjectURL(jsonBlob);dailyUrls.push(jsonUrl);
   const card=document.createElement('div');card.className='dailyResult';
-  const a=document.createElement('a');a.href=url;a.download=audioName;a.textContent=label+' WAV';
-  const j=document.createElement('a');j.href=jsonUrl;j.download=stamp+'_'+label+'_params.json';j.textContent='PARAMS';
+  const a=document.createElement('a');a.href=url;a.download=audioName;a.textContent=profile+' WAV';
+  const j=document.createElement('a');j.href=jsonUrl;j.download=stamp+'_'+slot+'_'+profile+'_params.json';j.textContent='PARAMS';
   const t=document.createElement('span');t.textContent=m+':'+s+' · 44.1k/16bit';
   card.append(a,j,t);root.appendChild(card);
 }
