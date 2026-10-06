@@ -255,28 +255,28 @@ function chooseGridCell(mode='neutral'){
   if(!gridRects.length)generateRandomGrid();
 
   const occupied=new Set(visualLayers.filter(l=>l.releaseStart===null).map(l=>l.cellId));
+  const inten=Number(intensity.value)/100;
   const pool=gridRects.map(r=>{
     const area=rectArea(r);
-    let w=.3+Math.random()*.35;
+    let w=.18+Math.random()*.55;
 
     if(mode==='sharp'){
-      // Sharp attacks prefer smaller / thinner pieces.
-      w+=(1-clamp(area/.30,0,1))*2.2;
-      if(r.strip)w+=1.7;
-      if(r.sizeClass==='xs'||r.sizeClass==='s')w+=1.1;
-      if(r.sizeClass==='xl')w*=.35;
+      w+=(1-clamp(area/.34,0,1))*2.8;
+      if(r.strip)w+=2.2;
+      if(r.sizeClass==='xs'||r.sizeClass==='s')w+=1.5;
+      if(r.sizeClass==='xl')w*=.55;
     }else if(mode==='soft'){
-      // Soft envelopes prefer large hero pieces and breathing room.
-      w+=clamp(area/.28,0,1)*2.6;
-      if(r.sizeClass==='l'||r.sizeClass==='xl')w+=1.3;
-      if(r.strip)w*=.45;
+      w+=clamp(area/.25,0,1)*3.0;
+      if(r.sizeClass==='l'||r.sizeClass==='xl')w+=1.8;
+      if(r.strip)w*=.62;
     }else{
-      w+=.65+Math.abs(.14-area)*.8;
+      w+=.5+Math.abs(.12-area)*1.2;
     }
 
-    if(!occupied.has(r.id))w*=1.8;
-    else w*=.72;
-    if(r.spanning)w*=mode==='soft'?1.5:.8;
+    // Higher intensity deliberately allows repeated use / overlap of occupied cells.
+    if(!occupied.has(r.id))w*=1.2+(1-inten)*.8;
+    else w*=.45+inten*1.45;
+    if(r.spanning)w*=mode==='soft'?1.7:1.0;
 
     return {r,w:Math.max(.02,w)};
   });
@@ -309,29 +309,77 @@ function releaseCell(cellId,mode,now){
 }
 function spawnLayer(mode,s,now,kind='main'){
   if(!gridRects.length)generateRandomGrid();
-  const cell=chooseGridCell(mode),style=transitionStyle.value,inten=Number(intensity.value)/100;
-  releaseCell(cell.id,mode,now);
+  const baseCell=chooseGridCell(mode),style=transitionStyle.value,inten=Number(intensity.value)/100;
+
+  // Create an axis-aligned display rect derived from the grid but with much wider scale range.
+  // It may overlap neighboring cells, but it never rotates.
+  const chaos=.35+inten*.95;
+  let cell={...baseCell};
+
+  if(Math.random()<.72*chaos){
+    const growX=mode==='soft'?rand(.04,.28):rand(-.08,.18);
+    const growY=mode==='soft'?rand(.04,.24):rand(-.08,.16);
+    const anchorX=Math.random()<.5?0:1,anchorY=Math.random()<.5?0:1;
+    if(growX>=0){
+      if(anchorX===0){cell.x-=growX;cell.w+=growX}else cell.w+=growX;
+    }else{
+      const shrink=-growX;cell.x+=shrink*.5;cell.w-=shrink;
+    }
+    if(growY>=0){
+      if(anchorY===0){cell.y-=growY;cell.h+=growY}else cell.h+=growY;
+    }else{
+      const shrink=-growY;cell.y+=shrink*.5;cell.h-=shrink;
+    }
+  }
+
+  if(mode==='sharp'&&Math.random()<.40){
+    // Tiny strip / shard, still perfectly horizontal or vertical.
+    if(Math.random()<.5){
+      cell.h=clamp(cell.h*rand(.18,.48),.035,.26);
+    }else{
+      cell.w=clamp(cell.w*rand(.18,.48),.045,.30);
+    }
+  }
+  if(mode==='soft'&&Math.random()<.34){
+    // Oversized hero piece.
+    cell.w=clamp(cell.w*rand(1.25,2.15),.28,.92);
+    cell.h=clamp(cell.h*rand(1.18,1.85),.22,.82);
+  }
+
+  cell.x=clamp(cell.x,-.12,.94);cell.y=clamp(cell.y,-.12,.96);
+  cell.w=clamp(cell.w,.045,1.02);cell.h=clamp(cell.h,.035,.92);
+
+  // Only some events replace an existing cell; many are allowed to stack.
+  if(Math.random()>(.48+.38*inten))releaseCell(baseCell.id,mode,now);
 
   const imgIndex=randomImage(lastImageIndex),img=images[imgIndex].img;
-  const W=canvas.width,H=canvas.height,gutter=clamp(14+(1-inten)*18,10,30);
-  const cellW=Math.max(20,W*cell.w-gutter*2),cellH=Math.max(20,H*cell.h-gutter*2);
-  const targetAspect=cellW/cellH;
-  const crop=computeCoverCrop(img,targetAspect,mode);
+  const W=canvas.width,H=canvas.height;
+
+  // Each photo gets its own spacing; negative values intentionally create overlaps.
+  const gapPx=rand(-18,42)*(0.55+inten*.9);
+  const leftGap=rand(Math.min(-6,gapPx),Math.max(8,gapPx));
+  const topGap=rand(Math.min(-6,gapPx),Math.max(8,gapPx));
+  const rightGap=rand(Math.min(-6,gapPx),Math.max(8,gapPx));
+  const bottomGap=rand(Math.min(-6,gapPx),Math.max(8,gapPx));
+
+  const cellW=Math.max(18,W*cell.w-leftGap-rightGap),cellH=Math.max(18,H*cell.h-topGap-bottomGap);
+  const targetAspect=cellW/cellH,crop=computeCoverCrop(img,targetAspect,mode);
   const sharp=mode==='sharp',soft=mode==='soft';
 
-  let fadeInMs=sharp?0:soft?rand(180,520):rand(60,150);
-  let life=sharp?rand(500,1250):soft?rand(1600,3500):rand(950,2000);
-  let fadeOutMs=sharp?0:soft?rand(300,900)*(1+Number(trail.value)/120):rand(100,300);
-  if(style==='dynamic'){life*=.82;fadeInMs*=.75;fadeOutMs*=.75}
-  if(style==='sparse'){life*=1.24;fadeInMs*=1.12;fadeOutMs*=1.18}
+  let fadeInMs=sharp?0:soft?rand(130,440):rand(30,110);
+  let life=sharp?rand(320,920):soft?rand(1150,3000):rand(700,1500);
+  let fadeOutMs=sharp?0:soft?rand(240,760)*(1+Number(trail.value)/140):rand(60,220);
+  if(style==='dynamic'){life*=.68;fadeInMs*=.65;fadeOutMs*=.65}
+  if(style==='sparse'){life*=1.18;fadeInMs*=1.05;fadeOutMs*=1.12}
 
   visualLayers.push({
-    imgIndex,mode,kind,cellId:cell.id,rect:cell,crop,
+    imgIndex,mode,kind,cellId:baseCell.id,rect:cell,crop,
+    gaps:{left:leftGap,top:topGap,right:rightGap,bottom:bottomGap},
     born:now,life,fadeInMs,fadeOutMs,releaseStart:null,spawnEnergy:s.energy,
-    blurStart:(Number(blur.value)/100)*(sharp?2:soft?12:6)
+    blurStart:(Number(blur.value)/100)*(sharp?1:soft?10:5)
   });
 
-  const hardMax=Math.max(gridRects.length+3,Number(maxLayers.value)+3);
+  const hardMax=Math.max(Number(maxLayers.value)+8,18);
   while(visualLayers.length>hardMax)visualLayers.shift();
 }
 function updateReleases(s,now){
@@ -347,24 +395,39 @@ function updateReleases(s,now){
 }
 function updateEvents(s,now){
   const env=classifyEnvelope(s);
-  const beatTh=Math.max(.024,beatFloor*.18),beatHit=s.onset>beatTh&&s.energy>beatFloor*1.025;
-  const fxHit=s.highOnset>.038||(s.high>.38&&s.onset>.014),strong=s.low>.34&&s.onset>.018;
+  const beatTh=Math.max(.020,beatFloor*.155),beatHit=s.onset>beatTh&&s.energy>beatFloor*1.015;
+  const fxHit=s.highOnset>.030||(s.high>.34&&s.onset>.011),strong=s.low>.30&&s.onset>.015;
   const inten=Number(intensity.value)/100,style=transitionStyle.value;
-  const minGap=style==='dynamic'?105:style==='sparse'?360:180;
+  const activity=clamp((s.energy/(beatFloor+.001)-.75)*.9+s.high*.55+s.onset*7,0,1.8);
+  const minGap=style==='dynamic'?55:style==='sparse'?180:95;
+
+  function burst(mode,count,kind='main'){
+    for(let i=0;i<count;i++)spawnLayer(mode,s,now+i*.01,kind);
+  }
 
   if(now-lastSpawn>minGap){
     if(fxHit){
-      spawnLayer('sharp',s,now,'accent');lastSpawn=now;flashAlpha=Math.max(flashAlpha,.01+.02*inten);
-      if(inten>.80&&Math.random()<.24)spawnLayer('sharp',s,now,'main');
+      const n=Math.max(1,Math.min(4,Math.round(1+inten*1.8+activity*.8+Math.random())));
+      burst('sharp',n,'accent');
+      lastSpawn=now;
+      flashAlpha=Math.max(flashAlpha,.006+.012*inten);
     }else if(beatHit||strong){
-      spawnLayer(env==='soft'?'soft':'sharp',s,now,'main');lastSpawn=now;
-    }else if(env==='soft'&&s.energy>beatFloor*.92&&Math.random()<.045+.06*inten){
-      spawnLayer('soft',s,now,'main');lastSpawn=now;
+      const baseMode=env==='soft'?'soft':'sharp';
+      const n=Math.max(1,Math.min(3,Math.round(1+inten*.9+activity*.55)));
+      burst(baseMode,n,'main');
+      lastSpawn=now;
+    }else if(env==='soft'&&s.energy>beatFloor*.88&&Math.random()<.065+.09*inten){
+      burst('soft',Math.random()<.28+inten*.25?2:1,'main');
+      lastSpawn=now;
     }
   }
-  if(!visualLayers.length&&images.length){spawnLayer(env==='sharp'?'sharp':'soft',s,now,'main');lastSpawn=now}
+
+  if(!visualLayers.length&&images.length){
+    burst(env==='sharp'?'sharp':'soft',2,'main');lastSpawn=now;
+  }
+
   updateReleases(s,now);
-  return {beatHit,fxHit,strong,env};
+  return {beatHit,fxHit,strong,env,activity};
 }
 function layerAlpha(l,now){
   const age=now-l.born;
@@ -380,9 +443,8 @@ function layerAlpha(l,now){
 function drawGalleryPiece(layer,now,s){
   const img=images[layer.imgIndex].img,W=canvas.width,H=canvas.height;
   const a=layerAlpha(layer,now);if(a<=.001)return;
-  const gutter=clamp(14+(1-Number(intensity.value)/100)*18,10,30);
-  const r=layer.rect;
-  const dx=W*r.x+gutter,dy=H*r.y+gutter,dw=Math.max(2,W*r.w-gutter*2),dh=Math.max(2,H*r.h-gutter*2);
+  const r=layer.rect,g=layer.gaps||{left:12,top:12,right:12,bottom:12};
+  const dx=W*r.x+g.left,dy=H*r.y+g.top,dw=Math.max(2,W*r.w-g.left-g.right),dh=Math.max(2,H*r.h-g.top-g.bottom);
   const age=now-layer.born,blurPx=layer.blurStart*(1-clamp(age/Math.max(80,layer.fadeInMs||100),0,1));
   const attack=Math.min(1,s.onset*10+s.highOnset*6);
   const br=1+(Number(bright.value)/100)*(s.high*.10-s.low*.025+attack*.018);
@@ -414,7 +476,7 @@ function drawFrame(now){
   if(!previewing||!analyser||!images.length)return;
   const s=spectrum(now),ev=updateEvents(s,now);renderLayers(now,s);
   const elapsed=audioEl?audioEl.currentTime-selectedStart:0;
-  hud.textContent=fmt(Math.max(0,elapsed))+' / 00:30 · '+ev.env.toUpperCase()+' · LOW '+Math.round(s.low*100)+' MID '+Math.round(s.mid*100)+' HIGH '+Math.round(s.high*100)+(ev.beatHit?' · BEAT':'')+(ev.fxHit?' · FX':'');
+  hud.textContent=fmt(Math.max(0,elapsed))+' / 00:30 · '+ev.env.toUpperCase()+' · LOW '+Math.round(s.low*100)+' MID '+Math.round(s.mid*100)+' HIGH '+Math.round(s.high*100)+(ev.beatHit?' · BEAT':'')+(ev.fxHit?' · FX':'')+' · CHAOS '+Math.round((ev.activity||0)*100);
   if(audioEl&&audioEl.currentTime>=selectedStart+selectedDuration-.03){stopAll(true);return}
   raf=requestAnimationFrame(drawFrame);
 }
@@ -452,7 +514,7 @@ function stopAll(natural=false){
 }
 previewBtn.onclick=()=>startPreview(false);recordBtn.onclick=()=>startPreview(true);stopBtn.onclick=()=>stopAll(false);
 $('#randomizeBtn').onclick=()=>{
-  intensity.value=Math.round(rand(52,95));maxLayers.value=Math.round(rand(5,13));zoom.value=Math.round(rand(20,60));shake.value=Math.round(rand(2,20));
+  intensity.value=Math.round(rand(68,100));maxLayers.value=Math.round(rand(7,14));zoom.value=Math.round(rand(18,58));shake.value=Math.round(rand(1,14));
   bright.value=Math.round(rand(10,38));trail.value=Math.round(rand(8,42));blur.value=Math.round(rand(0,38));
   transitionStyle.value=['soft','dynamic','sparse'][Math.floor(Math.random()*3)];updateLabels();
 };
