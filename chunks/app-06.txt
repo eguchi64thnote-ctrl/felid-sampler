@@ -4,10 +4,70 @@ $('#audioUpload').addEventListener('change',e=>uploadFiles(e.target.files));
 
 function applyGlobals(){if(!ctx)return;const now=ctx.currentTime;master.gain.cancelScheduledValues(now);master.gain.setTargetAtTime(running?mixerState.master:.0001,now,.08);ambientBus.gain.setTargetAtTime(state.level,now,.08);rhythmSampleBus.gain.setTargetAtTime(mixerState.sampleRhythm,now,.06);eightOhEightBus.gain.setTargetAtTime(mixerState.e808mix,now,.06);for(const role of ['kick','snare','hat','perc']){if(rhythmRoleBuses[role])rhythmRoleBuses[role].gain.setTargetAtTime(mixerState[role],now,.04);if(e808RoleBuses[role])e808RoleBuses[role].gain.setTargetAtTime(mixerState['e808'+role],now,.04)}if(e808RoleBuses.bass)e808RoleBuses.bass.gain.setTargetAtTime(mixerState.e808bass,now,.04);rhythmDelaySend.gain.setTargetAtTime(rhythmState.space*.34,now,.08);rhythmReverbSend.gain.setTargetAtTime(rhythmState.space*.28,now,.08);delayGain.gain.setTargetAtTime(state.delay,now,.08);feedbackGain.gain.setTargetAtTime(state.feedback,now,.1);reverbGain.gain.setTargetAtTime(state.reverb,now,.1);const d=(60/state.tempo)*.75;delayNode.delayTime.setTargetAtTime(clamp(d,.05,1.5),now,.08)}
 let dailyMaterialSubset=null;
-function dailyMaterialAllowed(materialId){return !dailyVarietyMode||!dailyMaterialSubset||dailyMaterialSubset.has(materialId)}
-function materialPlayable(m){return m&&m.enabled&&dailyMaterialAllowed(m.id)&&m.sampleIndices.some(i=>buffers[i]&&!SAMPLE_DATA[i]?.disabled)}
+let liveMaterialSubset=null;
+const livePaletteMemoryKey='felidLiveSourcePaletteV1';
+let livePaletteHistory=[];try{livePaletteHistory=JSON.parse(localStorage.getItem(livePaletteMemoryKey)||'[]');if(!Array.isArray(livePaletteHistory))livePaletteHistory=[]}catch(e){livePaletteHistory=[]}
+let livePaletteNextAt=0,livePaletteChangedAt=0;
+function materialAllowed(materialId){
+  if(dailyVarietyMode&&dailyMaterialSubset)return dailyMaterialSubset.has(materialId);
+  if(liveMaterialSubset)return liveMaterialSubset.has(materialId);
+  return true;
+}
+function materialPlayable(m){return m&&m.enabled&&materialAllowed(m.id)&&m.sampleIndices.some(i=>buffers[i]&&!SAMPLE_DATA[i]?.disabled)}
 function groupPlayable(g){return g&&g.active&&[...MATERIALS.values()].some(m=>m.groupId===g.id&&materialPlayable(m))}
-function indexPlayable(i){const d=SAMPLE_DATA[i],m=d&&MATERIALS.get(d.materialId),g=m&&GROUPS.get(m.groupId);return !!(buffers[i]&&m&&g&&m.enabled&&g.active&&dailyMaterialAllowed(m.id)&&!d.disabled)}
+function indexPlayable(i){const d=SAMPLE_DATA[i],m=d&&MATERIALS.get(d.materialId),g=m&&GROUPS.get(m.groupId);return !!(buffers[i]&&m&&g&&m.enabled&&g.active&&materialAllowed(m.id)&&!d.disabled)}
+function livePaletteCandidates(){
+  return [...MATERIALS.values()].filter(m=>{
+    const g=GROUPS.get(m.groupId);
+    return g&&g.active&&m.enabled&&m.sampleIndices.some(i=>buffers[i]&&!SAMPLE_DATA[i]?.disabled);
+  });
+}
+function livePaletteCount(){const r=rand();return r<.45?1:r<.80?2:3}
+function livePaletteKey(ids){return [...ids].sort().join('+')}
+function livePaletteOverlap(a,b){if(!a?.length||!b?.length)return 0;const bs=new Set(b),common=a.filter(x=>bs.has(x)).length;return common/Math.max(a.length,b.length)}
+function livePaletteNames(ids){return ids.map(id=>MATERIALS.get(id)?.name||id)}
+function rememberLivePalette(ids){
+  const key=livePaletteKey(ids);livePaletteHistory.push({key,ids:[...ids],t:Date.now()});
+  while(livePaletteHistory.length>160)livePaletteHistory.shift();
+  try{localStorage.setItem(livePaletteMemoryKey,JSON.stringify(livePaletteHistory))}catch(e){}
+}
+function chooseLivePalette(){
+  const mats=livePaletteCandidates();if(!mats.length)return [];
+  const maxCount=Math.min(3,mats.length),count=Math.min(maxCount,livePaletteCount()),current=[...(liveMaterialSubset||[])];
+  const recent=livePaletteHistory.slice(-48),recentKeys=new Set(recent.map(x=>x.key));
+  let best=null,bestScore=-Infinity;
+  for(let attempt=0;attempt<120;attempt++){
+    const pool=[...mats],ids=[];
+    while(ids.length<count&&pool.length){const i=Math.floor(rand()*pool.length);ids.push(pool.splice(i,1)[0].id)}
+    const key=livePaletteKey(ids),overlap=livePaletteOverlap(ids,current);
+    let minHist=1;
+    for(const h of recent){const d=1-livePaletteOverlap(ids,h.ids||[]);if(d<minHist)minHist=d}
+    let score=minHist*1.5-overlap*.9+(recentKeys.has(key)?-2.5:0)+rand()*.12;
+    if(current.length&&overlap===1)score-=1.5;
+    if(score>bestScore){bestScore=score;best=ids}
+  }
+  return best||[mats[Math.floor(rand()*mats.length)].id];
+}
+function renderLivePalette(){
+  const el=$('#sourcePalette');if(!el)return;
+  if(!liveMaterialSubset?.size){el.textContent='ALL';return}
+  const names=livePaletteNames([...liveMaterialSubset]);el.textContent=names.join(' + ');
+}
+function changeLivePalette(force=false){
+  if(dailyVarietyMode)return false;
+  const ids=chooseLivePalette();if(!ids.length)return false;
+  const old=[...(liveMaterialSubset||[])],key=livePaletteKey(ids);
+  if(!force&&key===livePaletteKey(old))return false;
+  liveMaterialSubset=new Set(ids);rememberLivePalette(ids);livePaletteChangedAt=performance.now();
+  livePaletteNextAt=livePaletteChangedAt+(30000+rand()*90000);
+  for(const L of layers){if(L.sample>=0){const d=SAMPLE_DATA[L.sample];if(!d||!liveMaterialSubset.has(d.materialId)){L.sample=-1;L.anchor=rand()}}}
+  for(const role of ['kick','snare','hat','perc']){const s=rhythmRoleState[role].sample;if(s>=0){const d=SAMPLE_DATA[s];if(!d||!liveMaterialSubset.has(d.materialId))rhythmRoleState[role].sample=-1}}
+  renderLivePalette();return true;
+}
+function updateLivePalette(now){
+  if(!running||!evolving||dailyVarietyMode)return;
+  if(!liveMaterialSubset||!liveMaterialSubset.size||now>=livePaletteNextAt)changeLivePalette(true);
+}
 function weightedGroup(){const arr=[...GROUPS.values()].filter(groupPlayable);if(!arr.length)return null;let total=arr.reduce((a,g)=>a+Math.max(.01,g.weight||1),0),r=rand()*total;for(const g of arr){r-=Math.max(.01,g.weight||1);if(r<=0)return g}return arr[arr.length-1]}
 let dailyVarietyMode=false;
 const dailyRecentSamples=[];
