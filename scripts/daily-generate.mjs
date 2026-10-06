@@ -33,6 +33,19 @@ function tokyoDate() {
   }).format(new Date());
 }
 
+function quotaLike(status, text='') {
+  return status === 402 || status === 403 || status === 409 || status === 429 ||
+    /quota|limit|usage|capacity|storage|exceed|billing|payment|required|insufficient/i.test(text);
+}
+function uploadError(stage, status, text) {
+  if (quotaLike(status, text)) {
+    const err = new Error('DAILY_TRACKS_STORAGE_LIMIT: Free storage/usage limit appears to be reached. Today\'s Daily Tracks could not be archived. ' + stage + ' ' + status + ' ' + text);
+    err.code = 'DAILY_TRACKS_STORAGE_LIMIT';
+    return err;
+  }
+  return new Error(stage + ': ' + status + ' ' + text);
+}
+
 async function uploadFile(filePath, date) {
   const name = path.basename(filePath);
   const contentType = name.endsWith('.wav') ? 'audio/wav' : 'application/json';
@@ -43,7 +56,10 @@ async function uploadFile(filePath, date) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ pathname, contentType, oidc }),
   });
-  if (!sign.ok) throw new Error('Sign upload failed: ' + sign.status + ' ' + await sign.text());
+  if (!sign.ok) {
+    const detail = await sign.text();
+    throw uploadError('Sign upload failed', sign.status, detail);
+  }
   const { presignedUrl } = await sign.json();
   const bytes = await readFile(filePath);
   const put = await fetch(presignedUrl, {
@@ -51,7 +67,10 @@ async function uploadFile(filePath, date) {
     headers: { 'content-type': contentType },
     body: bytes,
   });
-  if (!put.ok) throw new Error('Blob upload failed: ' + put.status + ' ' + await put.text());
+  if (!put.ok) {
+    const detail = await put.text();
+    throw uploadError('Blob upload failed', put.status, detail);
+  }
   return pathname;
 }
 
