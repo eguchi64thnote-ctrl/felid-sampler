@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '0 21 * * *'
     - cron: '0 3 * * *'
-    - cron: '0 8 * * *'
+    - cron: '0 7 * * *'
   workflow_dispatch:
 
 permissions:
@@ -44,8 +44,8 @@ jobs:
           case "$SCHEDULE_EXPR" in
             "0 21 * * *") export DAILY_SLOT=0600 ;;
             "0 3 * * *") export DAILY_SLOT=1200 ;;
-            "0 8 * * *") export DAILY_SLOT=1700 ;;
-            *) HOUR=$(TZ=Asia/Tokyo date +%H); if [ "$HOUR" -lt 9 ]; then export DAILY_SLOT=0600; elif [ "$HOUR" -lt 15 ]; then export DAILY_SLOT=1200; else export DAILY_SLOT=1700; fi ;;
+            "0 7 * * *") export DAILY_SLOT=1600 ;;
+            *) HOUR=$(TZ=Asia/Tokyo date +%H); if [ "$HOUR" -lt 9 ]; then export DAILY_SLOT=0600; elif [ "$HOUR" -lt 15 ]; then export DAILY_SLOT=1200; else export DAILY_SLOT=1600; fi ;;
           esac
           echo "Generating slot: $DAILY_SLOT"
           node scripts/daily-generate.mjs
