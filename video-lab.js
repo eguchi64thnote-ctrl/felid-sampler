@@ -2,7 +2,7 @@ const $=s=>document.querySelector(s);
 const audioInput=$('#audioInput'), imageInput=$('#imageInput'), previewBtn=$('#previewBtn'), recordBtn=$('#recordBtn'), stopBtn=$('#stopBtn');
 const statusEl=$('#status'), canvas=$('#canvas'), ctx2d=canvas.getContext('2d'), stage=$('#stage'), hud=$('#hud'), downloadLink=$('#downloadLink');
 const change=$('#change'), zoom=$('#zoom'), bright=$('#bright'), shake=$('#shake');
-let audioEl=null,audioUrl=null,audioCtx=null,sourceNode=null,analyser=null,audioDest=null,images=[],raf=0,current=0,nextSwitch=0,mediaRecorder=null,chunks=[],recording=false,previewing=false,lastT=0;
+let audioEl=null,audioUrl=null,audioCtx=null,sourceNode=null,analyser=null,audioDest=null,images=[],raf=0,current=0,nextSwitch=0,mediaRecorder=null,chunks=[],recording=false,previewing=false,lastT=0,lastSwitch=0,lastEnergy=0,lastHigh=0,beatFloor=.08;
 let orientation='portrait';
 
 function updateLabels(){
@@ -52,32 +52,74 @@ function spectrum(){
   const avg=(s,e)=>{let n=0,sum=0;for(let i=s;i<e;i++){sum+=a[i];n++}return n?sum/n/255:0};
   const low=avg(0,28), mid=avg(28,120), high=avg(120,360);
   let total=0;for(const v of a)total+=v; total/=a.length*255;
-  return {low,mid,high,total};
+  const energy=low*.48+mid*.34+high*.18;
+  const onset=Math.max(0,energy-lastEnergy);
+  const highOnset=Math.max(0,high-lastHigh);
+  beatFloor=beatFloor*.985+energy*.015;
+  lastEnergy=energy;lastHigh=high;
+  return {low,mid,high,total,energy,onset,highOnset};
 }
 function pickNext(){if(images.length<2)return;let n=current;for(let i=0;i<8&&n===current;i++)n=Math.floor(Math.random()*images.length);current=n}
 function drawFrame(t){
   if(!previewing||!analyser||!images.length)return;
-  const s=spectrum(), baseMs=Number(change.value)*1000, reactive=1-Math.min(.65,s.mid*.6+s.high*.3);
-  if(t>nextSwitch){pickNext();nextSwitch=t+baseMs*(.65+reactive*.55)}
+  const s=spectrum();
+  const maxHold=Math.max(1400,Number(change.value)*1000);
+  const minHold=260;
+  const since=t-lastSwitch;
+
+  // Switch primarily on musical events rather than a fixed timer.
+  // Strong low/mid attacks act like beats; sharp high-frequency attacks catch FX/transients.
+  const beatThreshold=Math.max(.035,beatFloor*.24);
+  const beatHit=s.onset>beatThreshold && s.energy>beatFloor*1.06;
+  const fxHit=s.highOnset>.055 || (s.high>.42 && s.onset>.025);
+  const accentHit=s.low>.42 && s.onset>.028;
+  const canSwitch=since>minHold;
+  const musicalSwitch=canSwitch && (beatHit || fxHit || accentHit);
+  const safetySwitch=since>maxHold;
+
+  if(musicalSwitch || safetySwitch){
+    pickNext();
+    lastSwitch=t;
+  }
+
   const {img}=images[current]; const W=canvas.width,H=canvas.height;
   ctx2d.fillStyle='#000';ctx2d.fillRect(0,0,W,H);
   const fit=Math.max(W/img.naturalWidth,H/img.naturalHeight);
-  const z=1+(Number(zoom.value)/100)*(.03+s.total*.16+s.low*.08);
+
+  // Motion is restrained in quiet passages and wakes up around attacks.
+  const attackBoost=Math.min(1,s.onset*10+s.highOnset*5);
+  const z=1+(Number(zoom.value)/100)*(.018+s.total*.11+s.low*.055+attackBoost*.028);
   const sc=fit*z,w=img.naturalWidth*sc,h=img.naturalHeight*sc;
   const sh=Number(shake.value)/100;
-  const dx=(Math.random()-.5)*W*s.low*.035*sh,dy=(Math.random()-.5)*H*s.low*.035*sh;
+  const shakeAmt=(s.low*.55+attackBoost*.45);
+  const dx=(Math.random()-.5)*W*.022*sh*shakeAmt,dy=(Math.random()-.5)*H*.022*sh*shakeAmt;
   const x=(W-w)/2+dx,y=(H-h)/2+dy;
-  const br=1+(Number(bright.value)/100)*(s.high*.35-s.low*.12);
-  const sat=.92+s.mid*.25;
-  ctx2d.save();ctx2d.filter='brightness('+br+') saturate('+sat+')';ctx2d.globalAlpha=.985;ctx2d.drawImage(img,x,y,w,h);ctx2d.restore();
-  if(s.high>.35){ctx2d.fillStyle='rgba(255,255,255,'+Math.min(.055,(s.high-.35)*.08)+')';ctx2d.fillRect(0,0,W,H)}
-  hud.textContent='LOW '+Math.round(s.low*100)+'  MID '+Math.round(s.mid*100)+'  HIGH '+Math.round(s.high*100);
+
+  const br=1+(Number(bright.value)/100)*(s.high*.28-s.low*.10+attackBoost*.06);
+  const sat=.90+s.mid*.18+s.high*.05;
+  ctx2d.save();
+  ctx2d.filter='brightness('+br+') saturate('+sat+')';
+  ctx2d.globalAlpha=.985;
+  ctx2d.drawImage(img,x,y,w,h);
+  ctx2d.restore();
+
+  // Subtle flash only on genuine transients.
+  if(fxHit || (beatHit&&s.high>.28)){
+    ctx2d.fillStyle='rgba(255,255,255,'+Math.min(.07,.018+attackBoost*.045)+')';
+    ctx2d.fillRect(0,0,W,H);
+  }
+
+  hud.textContent=
+    'LOW '+Math.round(s.low*100)+
+    '  MID '+Math.round(s.mid*100)+
+    '  HIGH '+Math.round(s.high*100)+
+    (beatHit?'  BEAT':'')+(fxHit?'  FX':'');
   lastT=t;raf=requestAnimationFrame(drawFrame);
 }
 async function startPreview(doRecord=false){
   if(previewing)stopAll();
   await ensureAudio();
-  current=Math.floor(Math.random()*images.length); nextSwitch=0;previewing=true;recording=doRecord;
+  current=Math.floor(Math.random()*images.length); nextSwitch=0;lastSwitch=performance.now();lastEnergy=0;lastHigh=0;beatFloor=.08;previewing=true;recording=doRecord;
   stopBtn.disabled=false;previewBtn.disabled=true;recordBtn.disabled=true;downloadLink.classList.remove('show');
   if(doRecord){
     const cvs=canvas.captureStream(30);
