@@ -403,6 +403,8 @@ const liveNoveltyDims=[
 ];
 function liveNoveltyBank(kind){return kind==='ambient'?state:kind==='rhythm'?rhythmState:mixerState}
 function liveSourceKey(){
+  if(dailyVarietyMode&&dailyMaterialSubset?.size)return livePaletteKey([...dailyMaterialSubset]);
+  if(liveMaterialSubset?.size)return livePaletteKey([...liveMaterialSubset]);
   const ids=[];for(const L of layers){if(L.sample<0)continue;const d=SAMPLE_DATA[L.sample];if(d?.materialId&&!ids.includes(d.materialId))ids.push(d.materialId)}
   return ids.sort().join('+');
 }
@@ -436,7 +438,7 @@ function liveNoveltyEscape(current,nearest){
   }
   if(rand()<.72){newGroove(true)}
   if(rand()<.58){const opts=[4,3,5,7].filter(x=>x!==currentDivision);currentDivision=opts[Math.floor(rand()*opts.length)];divisionFocus='auto';rhythmStep=0;updateDivisionButtons();updateDivisionReadout();rebuildCurrentRhythmPattern()}
-  if(rand()<.76)dailyForceSourceChange();
+  if(rand()<.62)changeLivePalette(true);else if(rand()<.76)dailyForceSourceChange();
   grooveBlendAmount=clamp(rhythmState.grooveMix,0,1);applyGlobals();
 }
 function updateLiveNovelty(now){
