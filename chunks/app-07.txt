@@ -456,8 +456,31 @@ window.addEventListener('beforeunload',saveLiveNoveltyHistory);
 
 // ---------- explicit generation modes ----------
 let generationMode='free';
-const minimalGroove={genre:'house',lastBar:-1,targetBar:0,lastAt:0,targets:null,evolutionStep:0,fixedTempo:null};
+const minimalGroove={genre:'house',lastBar:-1,targetBar:0,lastAt:0,targets:null,evolutionStep:0,fixedTempo:null,mixerTargets:null,mixerTargetBar:0};
 const MINIMAL_AUTO_GENRES=['hiphop','house','techno'];
+const MINIMAL_808_IDS=['e808mix','e808kick','e808snare','e808zap','e808hat','e808perc','e808bass','bassAttack','bassRelease','bassTone','bassGap'];
+function minimal808Profile(genre){
+  const p={
+    hiphop:{e808mix:[.58,.84],e808kick:[.56,.95],e808snare:[.20,.48],e808zap:[.06,.34],e808hat:[.24,.62],e808perc:[.05,.34],e808bass:[.45,.82],bassAttack:[.004,.035],bassRelease:[.35,1.25],bassTone:[.25,.50],bassGap:[.18,.50]},
+    house:{e808mix:[.62,.88],e808kick:[.62,1.02],e808snare:[.14,.42],e808zap:[.08,.42],e808hat:[.30,.72],e808perc:[.08,.38],e808bass:[.28,.62],bassAttack:[.003,.025],bassRelease:[.22,.75],bassTone:[.30,.55],bassGap:[.12,.36]},
+    techno:{e808mix:[.66,.90],e808kick:[.78,1.12],e808snare:[.02,.14],e808zap:[.38,.86],e808hat:[.30,.82],e808perc:[.10,.48],e808bass:[.26,.62],bassAttack:[.003,.018],bassRelease:[.18,.58],bassTone:[.32,.60],bassGap:[.10,.30]},
+    rnb:{e808mix:[.50,.78],e808kick:[.38,.72],e808snare:[.20,.50],e808zap:[.08,.40],e808hat:[.20,.55],e808perc:[.08,.34],e808bass:[.45,.82],bassAttack:[.006,.05],bassRelease:[.45,1.40],bassTone:[.22,.48],bassGap:[.22,.58]},
+    jazz:{e808mix:[.38,.68],e808kick:[.20,.52],e808snare:[.12,.38],e808zap:[.08,.46],e808hat:[.18,.54],e808perc:[.18,.58],e808bass:[.18,.48],bassAttack:[.008,.06],bassRelease:[.30,1.00],bassTone:[.25,.58],bassGap:[.18,.62]},
+    reggae:{e808mix:[.48,.76],e808kick:[.42,.72],e808snare:[.10,.34],e808zap:[.06,.36],e808hat:[.18,.52],e808perc:[.18,.55],e808bass:[.55,.88],bassAttack:[.005,.04],bassRelease:[.45,1.30],bassTone:[.20,.45],bassGap:[.24,.60]}
+  };return p[genre]||p.house;
+}
+function randomMinimal808Target(genre,fromCurrent=false){
+  const p=minimal808Profile(genre),out={};
+  for(const id of MINIMAL_808_IDS){
+    const [lo,hi]=p[id],cfg=mixerConfigs[id],raw=lo+rand()*(hi-lo);
+    if(fromCurrent){
+      const current=clamp(mixerState[id],lo,hi),maxStep=(hi-lo)*(id==='e808kick'||id==='e808mix'?.16:.28);
+      out[id]=snapConfigValue(clamp(raw,current-maxStep,current+maxStep),cfg);
+    }else out[id]=snapConfigValue(raw,cfg);
+  }
+  return out;
+}
+
 function minimalProfile(genre){
   const p={
     hiphop:{bpm:[78,96],density:[.46,.62],complexity:[.12,.24],mutation:[.004,.018],grooveDrift:[0,.012],grooveMix:[0,.025],swing:[.10,.20],humanize:[.018,.045],slice:[1.10,1.40],pitch:[0,.5],space:[.13,.22],breaks:[0,.018]},
@@ -508,11 +531,14 @@ function configureMinimalGroove(force=false){
     const t=chooseMinimalBase(genre);
     minimalGroove.fixedTempo=snapConfigValue(t.tempo,configs.tempo);state.tempo=minimalGroove.fixedTempo;syncControl('tempo',state,configs.tempo);
     for(const id of MINIMAL_MICRO_IDS){rhythmState[id]=snapConfigValue(t[id],rhythmConfigs[id]);syncRhythmControl(id)}
+    const m=randomMinimal808Target(genre,false);for(const id of MINIMAL_808_IDS){mixerState[id]=m[id];syncMixerControl(id)}
     rhythmState.evolveBars=16;syncRhythmControl('evolveBars');
     minimalGroove.evolutionStep=0;
   }
   minimalGroove.targets=chooseMinimalMicroTarget();
   minimalGroove.targetBar=rhythmBar+16;
+  minimalGroove.mixerTargets=randomMinimal808Target(genre,true);
+  minimalGroove.mixerTargetBar=rhythmBar+8;
   minimalGroove.lastBar=rhythmBar;minimalGroove.lastAt=performance.now();
   updateGrooveButtons();updateDivisionButtons();rebuildCurrentRhythmPattern();updateGrooveReadout();applyGlobals();
 }
@@ -524,11 +550,21 @@ function updateMinimalGroove(now){
     minimalGroove.targetBar=rhythmBar+16;
     minimalGroove.evolutionStep++;
   }
+  if(rhythmBar>=minimalGroove.mixerTargetBar||!minimalGroove.mixerTargets){
+    minimalGroove.mixerTargets=randomMinimal808Target(minimalGroove.genre,true);
+    minimalGroove.mixerTargetBar=rhythmBar+8;
+  }
   const dt=Math.min(.1,Math.max(.001,(now-(minimalGroove.lastAt||now))/1000));minimalGroove.lastAt=now;
   const a=1-Math.exp(-dt/24),t=minimalGroove.targets;
   state.tempo=minimalGroove.fixedTempo??state.tempo;syncControl('tempo',state,configs.tempo);
   for(const id of MINIMAL_MICRO_IDS){
     rhythmState[id]=snapConfigValue(rhythmState[id]+(t[id]-rhythmState[id])*a,rhythmConfigs[id]);syncRhythmControl(id)
+  }
+  const ma=1-Math.exp(-dt/18),mt=minimalGroove.mixerTargets||{};
+  for(const id of MINIMAL_808_IDS){
+    if(mt[id]==null)continue;
+    const cfg=mixerConfigs[id],n0=toNorm(mixerState[id],cfg),n1=toNorm(mt[id],cfg);
+    mixerState[id]=snapConfigValue(fromNorm(n0+(n1-n0)*ma,cfg),cfg);syncMixerControl(id)
   }
   rhythmState.evolveBars=16;
   grooveFocus=minimalGroove.genre;groovePrimary=minimalGroove.genre;grooveSecondary=minimalGroove.genre;grooveBlendAmount=clamp(rhythmState.grooveMix,0,.03);divisionFocus=4;currentDivision=4;
@@ -550,7 +586,7 @@ function setGenerationMode(mode){
   }
   else{
     if(previousMode==='minimal'&&minimalGroove.previousPitchRange){rhythmRandomRanges.pitch={...minimalGroove.previousPitchRange};minimalGroove.previousPitchRange=null;syncAllRandomRangeEditors()}
-    minimalGroove.targets=null;minimalGroove.fixedTempo=null;liveRhythmMacro.mode='chaos';liveRhythmMacro.nextAt=performance.now()+(45000+rand()*90000);setContinuousRandom(evolving)
+    minimalGroove.targets=null;minimalGroove.mixerTargets=null;minimalGroove.fixedTempo=null;liveRhythmMacro.mode='chaos';liveRhythmMacro.nextAt=performance.now()+(45000+rand()*90000);setContinuousRandom(evolving)
   }
   updateGenerationModeUI();
   $('#status').textContent=mode==='minimal'?(running?'GENERATING / MINIMAL GROOVE':'MINIMAL GROOVE / press PLAY'):(running?(evolving?'GENERATING / RANDOM WALK':'GENERATING'):(ctx?'STOPPED':'READY — press PLAY'));
