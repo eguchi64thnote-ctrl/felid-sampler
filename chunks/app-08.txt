@@ -26,7 +26,7 @@ window.addEventListener('pageshow',()=>{if(running&&ctx&&ctx.state!=='running')c
 function syncMobileDock(){
   const p=$('#mobilePlay'),w=$('#mobileWalk'),r=$('#mobileRhythm');
   if(p){p.textContent=running?'STOP':'PLAY';p.classList.toggle('mobilePrimary',!running);p.classList.toggle('mobileOn',running)}
-  if(w){w.innerHTML=evolving?'RANDOM<br>WALK ON':'RANDOM<br>WALK';w.classList.toggle('mobileOn',evolving)}
+  if(w){w.innerHTML=generationMode==='minimal'?(evolving?'GRADUAL<br>EVOLVE':'GRADUAL<br>HOLD'):(evolving?'RANDOM<br>WALK ON':'RANDOM<br>WALK');w.classList.toggle('mobileOn',evolving)}
   if(r){r.innerHTML=rhythmOn?'RHYTHM<br>ON':'RHYTHM<br>OFF';r.classList.toggle('mobileOn',rhythmOn)}
 }
 $('#mobilePlay')?.addEventListener('click',()=>{running?stop():start();setTimeout(syncMobileDock,20)});
