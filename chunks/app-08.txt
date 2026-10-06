@@ -195,21 +195,36 @@ function makeDefault1Snapshot(){
   const rangesFrom=defs=>Object.fromEntries(Object.entries(defs).map(([id,c])=>[id,{min:c.rmin??c.min,max:c.rmax??c.max}]));
   return {version:1,savedAt:0,state:valuesFrom(configs),meta:valuesFrom(metaConfigs),rhythmState:valuesFrom(rhythmConfigs),mixerState:valuesFrom(mixerConfigs),randomRanges:rangesFrom(configs),rhythmRandomRanges:rangesFrom(rhythmConfigs),mixerRandomRanges:rangesFrom(mixerConfigs),holds:{ambient:[],rhythm:[],mixer:['e808kick','bassAttack','bassRelease']},randomWalk:true,rhythm:{on:false,grooveFocus:'auto',groovePrimary:'house',grooveSecondary:'jazz',grooveBlendAmount:.05,divisionFocus:'auto',currentDivision:11},groups:[...GROUPS.values()].map(g=>({id:g.id,active:g.builtin?true:false,weight:g.builtin?1:(Number(g.weight)||1)})),materials:[...MATERIALS.values()].map(m=>({id:m.id,enabled:m.builtin?true:false,groupId:m.groupId}))};
 }
+let defaultSampleEvolutionActive=false,defaultSampleEvolutionNextAt=0;
+function syncGroupsToEnabledMaterials(){
+  const mats=[...MATERIALS.values()],activeGroups=new Set(mats.filter(m=>m.enabled).map(m=>m.groupId));
+  for(const g of GROUPS.values())g.active=activeGroups.has(g.id);
+  renderGroups();
+}
 function randomizeDefaultSampleSelection(){
   const mats=[...MATERIALS.values()];
   if(!mats.length)return;
   const count=Math.min(mats.length,1+Math.floor(rand()*3));
-  const pool=[...mats];
-  const chosen=new Set();
+  const pool=[...mats],chosen=new Set();
   while(chosen.size<count&&pool.length){
-    const i=Math.floor(rand()*pool.length);
-    const [m]=pool.splice(i,1);
+    const i=Math.floor(rand()*pool.length),m=pool.splice(i,1)[0];
     if(m)chosen.add(m.id);
   }
   for(const m of mats)m.enabled=chosen.has(m.id);
-  const activeGroups=new Set(mats.filter(m=>chosen.has(m.id)).map(m=>m.groupId));
-  for(const g of GROUPS.values())g.active=activeGroups.has(g.id);
-  renderGroups();
+  syncGroupsToEnabledMaterials();
+  defaultSampleEvolutionActive=true;
+  defaultSampleEvolutionNextAt=performance.now()+30000+rand()*20000;
+}
+function updateEvolvingSampleSelection(now=performance.now()){
+  if(!defaultSampleEvolutionActive||!evolving||!running||dailyVarietyMode||now<defaultSampleEvolutionNextAt)return;
+  const mats=[...MATERIALS.values()];
+  const selected=mats.filter(m=>m.enabled),available=mats.filter(m=>!m.enabled);
+  if(selected.length&&selected.length<=3&&available.length){
+    const out=selected[Math.floor(rand()*selected.length)],next=available[Math.floor(rand()*available.length)];
+    out.enabled=false;next.enabled=true;
+    syncGroupsToEnabledMaterials();
+  }
+  defaultSampleEvolutionNextAt=now+30000+rand()*20000;
 }
 function restoreDefault1(){restoreSnapshotData(makeDefault1Snapshot(),'DEFAULT 1');randomizeDefaultSampleSelection()}
 function restoreDefault2(){restoreSnapshotData(default2Snapshot,'DEFAULT 2');randomizeDefaultSampleSelection()}
