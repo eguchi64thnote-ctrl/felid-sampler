@@ -456,7 +456,7 @@ window.addEventListener('beforeunload',saveLiveNoveltyHistory);
 
 // ---------- explicit generation modes ----------
 let generationMode='free';
-const minimalGroove={genre:'house',lastBar:-1,targetBar:0,lastAt:0,targets:null,evolutionStep:0};
+const minimalGroove={genre:'house',lastBar:-1,targetBar:0,lastAt:0,targets:null,evolutionStep:0,fixedTempo:null};
 const MINIMAL_AUTO_GENRES=['hiphop','house','techno'];
 function minimalProfile(genre){
   const p={
@@ -481,7 +481,7 @@ function chooseMinimalBase(genre){
 }
 const MINIMAL_MICRO_IDS=['density','complexity','mutation','grooveDrift','grooveMix','swing','humanize','slice','pitch','space','breaks'];
 function chooseMinimalMicroTarget(){
-  const t={tempo:state.tempo};
+  const t={tempo:minimalGroove.fixedTempo??state.tempo};
   for(const id of MINIMAL_MICRO_IDS)t[id]=rhythmState[id];
   t.evolveBars=rhythmState.evolveBars;
   const id=MINIMAL_MICRO_IDS[Math.floor(rand()*MINIMAL_MICRO_IDS.length)];
@@ -489,10 +489,6 @@ function chooseMinimalMicroTarget(){
   const scale={density:.010,complexity:.008,mutation:.004,grooveDrift:.004,grooveMix:.005,swing:.006,humanize:.004,slice:.010,pitch:.008,space:.007,breaks:.004}[id]||.006;
   const direction=rand()<.5?-1:1;
   t[id]=clamp(rhythmState[id]+direction*span*scale*(.45+rand()*.55),cfg.min,cfg.max);
-  if(rand()<.18){
-    const tempoStep=rand()<.5?-1:1;
-    t.tempo=clamp(state.tempo+tempoStep,configs.tempo.min,configs.tempo.max);
-  }
   return t;
 }
 function updateGenerationModeUI(){
@@ -510,7 +506,7 @@ function configureMinimalGroove(force=false){
   divisionFocus=4;currentDivision=4;setLiveRhythmOn(true);
   if(force){
     const t=chooseMinimalBase(genre);
-    state.tempo=snapConfigValue(t.tempo,configs.tempo);syncControl('tempo',state,configs.tempo);
+    minimalGroove.fixedTempo=snapConfigValue(t.tempo,configs.tempo);state.tempo=minimalGroove.fixedTempo;syncControl('tempo',state,configs.tempo);
     for(const id of MINIMAL_MICRO_IDS){rhythmState[id]=snapConfigValue(t[id],rhythmConfigs[id]);syncRhythmControl(id)}
     rhythmState.evolveBars=16;syncRhythmControl('evolveBars');
     minimalGroove.evolutionStep=0;
@@ -530,7 +526,7 @@ function updateMinimalGroove(now){
   }
   const dt=Math.min(.1,Math.max(.001,(now-(minimalGroove.lastAt||now))/1000));minimalGroove.lastAt=now;
   const a=1-Math.exp(-dt/24),t=minimalGroove.targets;
-  state.tempo=snapConfigValue(state.tempo+(t.tempo-state.tempo)*a,configs.tempo);syncControl('tempo',state,configs.tempo);
+  state.tempo=minimalGroove.fixedTempo??state.tempo;syncControl('tempo',state,configs.tempo);
   for(const id of MINIMAL_MICRO_IDS){
     rhythmState[id]=snapConfigValue(rhythmState[id]+(t[id]-rhythmState[id])*a,rhythmConfigs[id]);syncRhythmControl(id)
   }
@@ -546,8 +542,8 @@ function updateMinimalGroove(now){
 function setGenerationMode(mode){
   if(mode!=='free'&&mode!=='minimal')return;
   generationMode=mode;
-  if(mode==='minimal'){setContinuousRandom(true);configureMinimalGroove(true)}
-  else{minimalGroove.targets=null;liveRhythmMacro.mode='chaos';liveRhythmMacro.nextAt=performance.now()+(45000+rand()*90000);setContinuousRandom(evolving)}
+  if(mode==='minimal'){minimalGroove.fixedTempo=state.tempo;setContinuousRandom(true);configureMinimalGroove(true)}
+  else{minimalGroove.targets=null;minimalGroove.fixedTempo=null;liveRhythmMacro.mode='chaos';liveRhythmMacro.nextAt=performance.now()+(45000+rand()*90000);setContinuousRandom(evolving)}
   updateGenerationModeUI();
   $('#status').textContent=mode==='minimal'?(running?'GENERATING / MINIMAL GROOVE':'MINIMAL GROOVE / press PLAY'):(running?(evolving?'GENERATING / RANDOM WALK':'GENERATING'):(ctx?'STOPPED':'READY — press PLAY'));
 }
