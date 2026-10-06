@@ -20,7 +20,7 @@ const GROOVES={
 };
 const GROOVE_KEYS=Object.keys(GROOVES);const GROOVE_LABELS={house:'HOUSE',techno:'TECHNO',rnb:'R&B',hiphop:'HIP-HOP',jazz:'JAZZ',reggae:'REGGAE'};
 function updateGrooveButtons(){document.querySelectorAll('#grooveGrid button').forEach(b=>b.classList.toggle('active',b.dataset.groove===grooveFocus))}
-function setGrooveFocus(g){if(g!=='auto'&&!GROOVES[g])return;grooveFocus=g;updateGrooveButtons();newGroove(true)}
+function setGrooveFocus(g){if(g!=='auto'&&!GROOVES[g])return;grooveFocus=g;updateGrooveButtons();newGroove(true);if(typeof generationMode!=='undefined'&&generationMode==='minimal'&&typeof configureMinimalGroove==='function')configureMinimalGroove(true)}
 document.querySelectorAll('#grooveGrid button').forEach(b=>b.onclick=()=>setGrooveFocus(b.dataset.groove));
 const DIVISION_OPTIONS=[4,3,5,7,9,11];
 function divisionLabel(n){return n===4?'STRAIGHT / 4 per beat':n+'-LET / '+n+' per beat'}
