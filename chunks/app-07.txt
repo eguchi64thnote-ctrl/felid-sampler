@@ -389,11 +389,74 @@ function updateMixerMorph(){if(mixerMorphState){const t=clamp((performance.now()
 
 // A true continuous bounded random walk. Every sound-making control has its own
 // independent velocity. Directions bend gradually and reflect at user-defined MIN/MAX.
+const liveNoveltyMemoryKey='felidLiveNoveltyMemoryV1';
+let liveNoveltyHistory=[];try{liveNoveltyHistory=JSON.parse(localStorage.getItem(liveNoveltyMemoryKey)||'[]');if(!Array.isArray(liveNoveltyHistory))liveNoveltyHistory=[]}catch(e){liveNoveltyHistory=[]}
+let liveNoveltyLastCapture=0,liveNoveltyLastEscape=0,liveNoveltyDirty=0;
+const LIVE_NOVELTY_INTERVAL=4000,LIVE_NOVELTY_MIN_AGE=18000,LIVE_NOVELTY_THRESHOLD=.072,LIVE_NOVELTY_MAX=900;
+const liveNoveltyDims=[
+  ['ambient','tempo',configs.tempo],['ambient','density',configs.density],['ambient','grain',configs.grain],['ambient','ma',configs.ma],
+  ['ambient','continuity',configs.continuity],['ambient','drift',configs.drift],['ambient','pitch',configs.pitch],['ambient','cutoff',configs.cutoff],
+  ['ambient','reverb',configs.reverb],['rhythm','density',rhythmConfigs.density],['rhythm','complexity',rhythmConfigs.complexity],
+  ['rhythm','mutation',rhythmConfigs.mutation],['rhythm','slice',rhythmConfigs.slice],['rhythm','pitch',rhythmConfigs.pitch],
+  ['rhythm','space',rhythmConfigs.space],['mixer','sampleRhythm',mixerConfigs.sampleRhythm],['mixer','e808mix',mixerConfigs.e808mix],
+  ['mixer','e808bass',mixerConfigs.e808bass],['mixer','bassTone',mixerConfigs.bassTone]
+];
+function liveNoveltyBank(kind){return kind==='ambient'?state:kind==='rhythm'?rhythmState:mixerState}
+function liveSourceKey(){
+  const ids=[];for(const L of layers){if(L.sample<0)continue;const d=SAMPLE_DATA[L.sample];if(d?.materialId&&!ids.includes(d.materialId))ids.push(d.materialId)}
+  return ids.sort().join('+');
+}
+function liveStateFingerprint(){
+  return {
+    t:Date.now(),
+    v:liveNoveltyDims.map(([kind,id,cfg])=>clamp(toNorm(liveNoveltyBank(kind)[id],cfg),0,1)),
+    rhythm:rhythmOn?1:0,groove:groovePrimary,secondary:grooveSecondary,division:currentDivision,sourceKey:liveSourceKey()
+  };
+}
+function liveStateDistance(a,b){
+  if(!a?.v||!b?.v)return 1;const len=Math.min(a.v.length,b.v.length);let sum=0;
+  for(let i=0;i<len;i++)sum+=Math.abs(a.v[i]-b.v[i]);
+  let d=len?sum/len:1;
+  if(a.rhythm!==b.rhythm)d+=.08;if(a.groove!==b.groove)d+=.06;if(a.secondary!==b.secondary)d+=.03;if(a.division!==b.division)d+=.05;if(a.sourceKey!==b.sourceKey)d+=.08;
+  return d;
+}
+function saveLiveNoveltyHistory(){
+  try{localStorage.setItem(liveNoveltyMemoryKey,JSON.stringify(liveNoveltyHistory.slice(-LIVE_NOVELTY_MAX)))}catch(e){}
+  liveNoveltyDirty=0;
+}
+function liveNoveltyEscape(current,nearest){
+  const now=performance.now();if(now-liveNoveltyLastEscape<6500)return;liveNoveltyLastEscape=now;
+  const ranked=current.v.map((x,i)=>({i,gap:Math.abs(x-(nearest?.v?.[i]??.5))})).sort((a,b)=>a.gap-b.gap);
+  for(const {i} of ranked.slice(0,8)){
+    const [kind,id,cfg]=liveNoveltyDims[i],bank=liveNoveltyBank(kind),range=kind==='ambient'?randomRanges[id]:kind==='rhythm'?rhythmRandomRanges[id]:mixerRandomRanges[id];
+    if(!range)continue;
+    let n=current.v[i],old=nearest?.v?.[i]??.5,dir=n>=old?1:-1;if(Math.abs(n-old)<.025)dir=rand()<.5?-1:1;
+    n=clamp(n+dir*(.14+rand()*.24),toNorm(range.min,cfg),toNorm(range.max,cfg));bank[id]=snapConfigValue(fromNorm(n,cfg),cfg);
+    const agent=walkAgents[kind]?.[id];if(agent){agent.v=dir*Math.abs(agent.v||.006)*(1.4+rand());agent.targetV=dir*(.012+rand()*.018)*meta.walkSpeed;agent.turnIn=.8+rand()*1.8}
+  }
+  if(rand()<.72){newGroove(true)}
+  if(rand()<.58){const opts=[4,3,5,7].filter(x=>x!==currentDivision);currentDivision=opts[Math.floor(rand()*opts.length)];divisionFocus='auto';rhythmStep=0;updateDivisionButtons();updateDivisionReadout();rebuildCurrentRhythmPattern()}
+  if(rand()<.76)dailyForceSourceChange();
+  grooveBlendAmount=clamp(rhythmState.grooveMix,0,1);applyGlobals();
+}
+function updateLiveNovelty(now){
+  if(!running||!evolving||now-liveNoveltyLastCapture<LIVE_NOVELTY_INTERVAL)return;
+  liveNoveltyLastCapture=now;const current=liveStateFingerprint(),cutoff=Date.now()-LIVE_NOVELTY_MIN_AGE;
+  const older=liveNoveltyHistory.filter(x=>(x.t||0)<cutoff);
+  if(older.length){
+    let nearest=null,best=Infinity;for(const x of older){const d=liveStateDistance(current,x);if(d<best){best=d;nearest=x}}
+    if(best<LIVE_NOVELTY_THRESHOLD)liveNoveltyEscape(current,nearest);
+  }
+  liveNoveltyHistory.push(current);while(liveNoveltyHistory.length>LIVE_NOVELTY_MAX)liveNoveltyHistory.shift();
+  if(++liveNoveltyDirty>=3)saveLiveNoveltyHistory();
+}
+window.addEventListener('beforeunload',saveLiveNoveltyHistory);
+
 const walkAgents={ambient:{},rhythm:{},mixer:{}};let walkLast=performance.now(),walkReadoutAt=0;
 function makeWalkAgent(){return {v:(Math.random()<.5?-1:1)*(.003+Math.random()*.009),targetV:0,turnIn:.25+Math.random()*1.8,personality:.65+Math.random()*.9}}
 function resetWalkAgents(){walkAgents.ambient={};walkAgents.rhythm={};walkAgents.mixer={};for(const id of Object.keys(configs))walkAgents.ambient[id]=makeWalkAgent();for(const id of Object.keys(rhythmConfigs))walkAgents.rhythm[id]=makeWalkAgent();for(const id of Object.keys(mixerConfigs))walkAgents.mixer[id]=makeWalkAgent();walkLast=performance.now()}
 function walkParameter(target,id,c,range,agent,dt){if(!range||range.max<=range.min)return false;let n=toNorm(target[id],c),lo=toNorm(range.min,c),hi=toNorm(range.max,c);if(hi<lo)[lo,hi]=[hi,lo];n=clamp(n,lo,hi);agent.turnIn-=dt;const speed=meta.walkSpeed,depth=meta.depth;if(agent.turnIn<=0||!Number.isFinite(agent.targetV)){const sign=Math.random()<.5?-1:1;const mag=(.0035+Math.random()*.0135)*speed*agent.personality*(.55+.65*depth);agent.targetV=sign*mag;agent.turnIn=.35+Math.random()*(2.8/(.45+speed*.55))}const bend=1-Math.exp(-dt*(.45+speed*.7));agent.v+=(agent.targetV-agent.v)*bend;const minV=.0015*speed*agent.personality;if(Math.abs(agent.v)<minV)agent.v=(agent.v<0?-1:1)*minV;n+=agent.v*dt;if(n<=lo){n=lo+(lo-n);agent.v=Math.abs(agent.v);agent.targetV=Math.abs(agent.targetV||agent.v);agent.turnIn=.2+Math.random()*.9}if(n>=hi){n=hi-(n-hi);agent.v=-Math.abs(agent.v);agent.targetV=-Math.abs(agent.targetV||agent.v);agent.turnIn=.2+Math.random()*.9}n=clamp(n,lo,hi);target[id]=fromNorm(n,c);return true}
-function updateRandomWalk(now){const dt=Math.min(.08,Math.max(0,(now-walkLast)/1000));walkLast=now;if(evolving&&dt>0){for(const [id,c] of Object.entries(configs)){if(locked.has(id))continue;walkParameter(state,id,c,randomRanges[id],walkAgents.ambient[id]||(walkAgents.ambient[id]=makeWalkAgent()),dt);syncControl(id,state,c)}for(const [id,c] of Object.entries(rhythmConfigs)){if(rhythmLocked.has(id))continue;walkParameter(rhythmState,id,c,rhythmRandomRanges[id],walkAgents.rhythm[id]||(walkAgents.rhythm[id]=makeWalkAgent()),dt);syncRhythmControl(id)}for(const [id,c] of Object.entries(mixerConfigs)){if(mixerLocked.has(id))continue;walkParameter(mixerState,id,c,mixerRandomRanges[id],walkAgents.mixer[id]||(walkAgents.mixer[id]=makeWalkAgent()),dt);syncMixerControl(id)}grooveBlendAmount=clamp(rhythmState.grooveMix,0,1);if(now-walkReadoutAt>180){updateGrooveReadout();walkReadoutAt=now}applyGlobals()}requestAnimationFrame(updateRandomWalk)}
+function updateRandomWalk(now){const dt=Math.min(.08,Math.max(0,(now-walkLast)/1000));walkLast=now;if(evolving&&dt>0){for(const [id,c] of Object.entries(configs)){if(locked.has(id))continue;walkParameter(state,id,c,randomRanges[id],walkAgents.ambient[id]||(walkAgents.ambient[id]=makeWalkAgent()),dt);syncControl(id,state,c)}for(const [id,c] of Object.entries(rhythmConfigs)){if(rhythmLocked.has(id))continue;walkParameter(rhythmState,id,c,rhythmRandomRanges[id],walkAgents.rhythm[id]||(walkAgents.rhythm[id]=makeWalkAgent()),dt);syncRhythmControl(id)}for(const [id,c] of Object.entries(mixerConfigs)){if(mixerLocked.has(id))continue;walkParameter(mixerState,id,c,mixerRandomRanges[id],walkAgents.mixer[id]||(walkAgents.mixer[id]=makeWalkAgent()),dt);syncMixerControl(id)}grooveBlendAmount=clamp(rhythmState.grooveMix,0,1);if(now-walkReadoutAt>180){updateGrooveReadout();walkReadoutAt=now}applyGlobals();updateLiveNovelty(now)}requestAnimationFrame(updateRandomWalk)}
 resetWalkAgents();requestAnimationFrame(updateRandomWalk);
 function setContinuousRandom(on){evolving=!!on;morphState=null;rhythmMorphState=null;mixerMorphState=null;if(evolving)resetWalkAgents();for(const id of ['evolve','continuousRandom']){const b=$('#'+id);if(!b)continue;b.classList.toggle('on',evolving);b.textContent=evolving?'RANDOM WALK ON':'RANDOM WALK OFF'}$('#status').textContent=evolving?(running?'GENERATING / RANDOM WALK':'RANDOM WALK / press PLAY'):(running?'GENERATING':(ctx?'STOPPED':'READY — press PLAY'))}
 $('#evolve').onclick=()=>setContinuousRandom(!evolving);$('#continuousRandom').onclick=()=>setContinuousRandom(!evolving);
