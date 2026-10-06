@@ -48,7 +48,7 @@
         <div class="controls" style="margin-top:10px">
           <div class="control"><label><span>TRANSITION STYLE</span><span></span></label><select id="transitionStyle"><option value="soft">SOFT</option><option value="dynamic">DYNAMIC</option><option value="sparse">SPARSE</option></select></div>
           <div class="control"><label><span>BRIGHTNESS RESPONSE</span><span id="brightOut">26%</span></label><input id="bright" type="range" min="0" max="100" value="26"></div>
-          <div class="control"><label><span>TRAIL / AFTERIMAGE</span><span id="trailOut">18%</span></label><input id="trail" type="range" min="0" max="100" value="18"></div>
+          <div class="control"><label><span>SOFT RELEASE</span><span id="trailOut">18%</span></label><input id="trail" type="range" min="0" max="100" value="18"></div>
           <div class="control"><label><span>BLUR ENTRY</span><span id="blurOut">24%</span></label><input id="blur" type="range" min="0" max="100" value="24"></div>
         </div>
         <div class="actions"><button id="randomizeBtn">RANDOMIZE LOOK</button></div>
@@ -64,7 +64,7 @@
   </div>
 
   <div class="panel note">
-    STORY MODEは常に9:16 / 1080×1920 / 30秒です。WAV全体から、音量変化・アタック・高域イベント・静寂のバランスを評価して30秒を自動抽出します。映像は背景1枚を基礎に、ビートや効果音の瞬間に写真が左上・中央・右下などへ重なり、サイズ・回転・透明度も音に応じて変化します。
+    STORY MODEは常に9:16 / 1080×1920 / 30秒です。WAV全体から、音量変化・アタック・高域イベント・静寂のバランスを評価して30秒を自動抽出します。映像は背景固定なし。写真の一部を大きくクロップした断片が重なり、sharpな音ではパキッと即時表示、softな音ではアタック／リリースに沿ってフェードします。
   </div>
 </div>
 <script src="/video-lab.js" defer></script>
