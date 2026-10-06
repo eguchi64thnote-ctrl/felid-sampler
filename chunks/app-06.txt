@@ -66,6 +66,7 @@ function changeLivePalette(force=false){
 }
 function updateLivePalette(now){
   if(!running||!evolving||dailyVarietyMode)return;
+  if(typeof liveRhythmMacroIsOrdered==='function'&&liveRhythmMacroIsOrdered())return;
   if(!liveMaterialSubset||!liveMaterialSubset.size||now>=livePaletteNextAt)changeLivePalette(true);
 }
 function weightedGroup(){const arr=[...GROUPS.values()].filter(groupPlayable);if(!arr.length)return null;let total=arr.reduce((a,g)=>a+Math.max(.01,g.weight||1),0),r=rand()*total;for(const g of arr){r-=Math.max(.01,g.weight||1);if(r<=0)return g}return arr[arr.length-1]}
@@ -132,7 +133,7 @@ function schedulerTick(){
       rhythmScheduler(now,now+.22);return;
     }
   }
-  if(!morphState)$('#status').textContent=evolving?'GENERATING / RANDOM WALK':'GENERATING';
+  if(!morphState)$('#status').textContent=typeof liveGenerationStatus==='function'?liveGenerationStatus():(evolving?'GENERATING / RANDOM WALK':'GENERATING');
   const horizon=now+.22,voiceCount=clamp(Math.round(state.voices),1,4);
   layers.forEach((L,li)=>{
     if(li>=voiceCount){L.next=Math.max(L.next,horizon);return}
