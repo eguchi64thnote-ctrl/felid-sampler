@@ -454,11 +454,110 @@ function updateLiveNovelty(now){
 }
 window.addEventListener('beforeunload',saveLiveNoveltyHistory);
 
+// ---------- live form: order -> breakdown -> chaos ----------
+const liveRhythmMacro={mode:'chaos',nextAt:0,until:0,preset:null,lastApply:0,fractured:false};
+function liveRhythmMacroIsOrdered(){return !dailyVarietyMode&&liveRhythmMacro.mode==='order'}
+function liveRhythmMacroHolds(kind,id){
+  if(!liveRhythmMacroIsOrdered())return false;
+  if(kind==='ambient')return id==='tempo';
+  if(kind==='rhythm')return true;
+  return false;
+}
+function setLiveRhythmOn(on){
+  if(rhythmOn===on)return;
+  rhythmOn=on;
+  const b=$('#rhythmToggle');if(b){b.textContent=rhythmOn?'RHYTHM ON':'RHYTHM OFF';b.classList.toggle('on',rhythmOn)}
+  $('#rhythmPulse')?.classList.toggle('on',rhythmOn);
+  rhythmStep=0;rhythmBar=0;if(ctx)rhythmNextStep=ctx.currentTime+.04;
+}
+function liveMacroSet(bank,id,value,cfg,sync){
+  bank[id]=snapConfigValue(clamp(value,cfg.min,cfg.max),cfg);sync(id);
+}
+function enterLiveOrder(now){
+  const hiphop=rand()<.5;
+  const groove=hiphop?'hiphop':(rand()<.55?'house':'techno');
+  const bpm=hiphop?Math.round(78+rand()*20):Math.round(112+rand()*17);
+  liveRhythmMacro.mode='order';liveRhythmMacro.preset={kind:hiphop?'HIP-HOP':'FOUR-ON-FLOOR',groove,bpm};
+  liveRhythmMacro.until=now+(28000+rand()*32000);liveRhythmMacro.fractured=false;liveRhythmMacro.lastApply=0;
+  setLiveRhythmOn(true);
+  grooveFocus=groove;groovePrimary=groove;grooveSecondary=GROOVE_KEYS.find(x=>x!==groove)||groove;grooveBlendAmount=0;
+  divisionFocus=4;currentDivision=4;
+  liveMacroSet(state,'tempo',bpm,configs.tempo,(id)=>syncControl(id,state,configs[id]));
+  const vals=hiphop
+    ?{density:.72,complexity:.30,mutation:0,grooveDrift:0,grooveMix:0,swing:.15,humanize:.05,breaks:0,evolveBars:16,pitch:2.6,slice:.42,space:.16}
+    :{density:.92,complexity:.24,mutation:0,grooveDrift:0,grooveMix:0,swing:.02,humanize:.025,breaks:0,evolveBars:16,pitch:1.6,slice:.28,space:.12};
+  for(const [id,v] of Object.entries(vals))liveMacroSet(rhythmState,id,v,rhythmConfigs[id],syncRhythmControl);
+  updateGrooveButtons();updateDivisionButtons();rebuildCurrentRhythmPattern();updateGrooveReadout();applyGlobals();
+}
+function enterLiveBreakdown(now){
+  liveRhythmMacro.mode='breakdown';liveRhythmMacro.until=now+(14000+rand()*12000);liveRhythmMacro.lastApply=0;liveRhythmMacro.fractured=false;
+  grooveFocus=liveRhythmMacro.preset?.groove||'auto';divisionFocus=4;updateGrooveButtons();updateDivisionButtons();resetWalkAgents();
+  const ta=walkAgents.ambient.tempo;if(ta){const dir=rand()<.5?-1:1;ta.v=dir*.014;ta.targetV=dir*(.020+rand()*.018)*meta.walkSpeed;ta.turnIn=2+rand()*2}
+  for(const id of ['mutation','complexity','grooveDrift','breaks','humanize']){
+    const a=walkAgents.rhythm[id];if(a){a.v=Math.abs(a.v||.008);a.targetV=(.016+rand()*.02)*meta.walkSpeed;a.turnIn=1.5+rand()*2}
+  }
+}
+function enterLiveChaos(now){
+  liveRhythmMacro.mode='chaos';liveRhythmMacro.nextAt=now+(90000+rand()*150000);liveRhythmMacro.until=0;liveRhythmMacro.fractured=false;
+  grooveFocus='auto';divisionFocus='auto';updateGrooveButtons();updateDivisionButtons();newGroove(true);changeLivePalette(true);resetWalkAgents();
+}
+function applyLiveOrder(now){
+  const p=liveRhythmMacro.preset;if(!p)return;
+  if(now-liveRhythmMacro.lastApply<250)return;liveRhythmMacro.lastApply=now;
+  state.tempo=snapConfigValue(p.bpm,configs.tempo);syncControl('tempo',state,configs.tempo);
+  grooveFocus=p.groove;groovePrimary=p.groove;grooveBlendAmount=0;divisionFocus=4;currentDivision=4;
+  const hiphop=p.kind==='HIP-HOP',vals=hiphop
+    ?{density:.72,complexity:.30,mutation:0,grooveDrift:0,grooveMix:0,swing:.15,humanize:.05,breaks:0,evolveBars:16,pitch:2.6,slice:.42,space:.16}
+    :{density:.92,complexity:.24,mutation:0,grooveDrift:0,grooveMix:0,swing:.02,humanize:.025,breaks:0,evolveBars:16,pitch:1.6,slice:.28,space:.12};
+  for(const [id,v] of Object.entries(vals)){rhythmState[id]=snapConfigValue(v,rhythmConfigs[id]);syncRhythmControl(id)}
+  updateGrooveReadout();applyGlobals();
+}
+function applyLiveBreakdown(now){
+  if(now-liveRhythmMacro.lastApply<280)return;liveRhythmMacro.lastApply=now;
+  const dur=Math.max(1,liveRhythmMacro.until-(liveRhythmMacro.breakStart||now)),elapsed=now-(liveRhythmMacro.breakStart||now),p=clamp(elapsed/dur,0,1);
+  rhythmState.mutation=Math.max(rhythmState.mutation,.08+.84*p);
+  rhythmState.complexity=Math.max(rhythmState.complexity,.30+.62*p);
+  rhythmState.grooveDrift=Math.max(rhythmState.grooveDrift,.10+.86*p);
+  rhythmState.breaks=Math.max(rhythmState.breaks,.02+.62*p);
+  rhythmState.humanize=Math.max(rhythmState.humanize,.04+.28*p);
+  for(const id of ['mutation','complexity','grooveDrift','breaks','humanize'])syncRhythmControl(id);
+  if(p>.44&&!liveRhythmMacro.fractured){
+    liveRhythmMacro.fractured=true;grooveFocus='auto';divisionFocus='auto';
+    const opts=[3,5,7];currentDivision=opts[Math.floor(rand()*opts.length)];
+    updateGrooveButtons();updateDivisionButtons();newGroove(true);changeLivePalette(true);
+  }
+}
+function updateLiveRhythmMacro(now){
+  if(!running||!evolving||dailyVarietyMode)return;
+  if(!liveRhythmMacro.nextAt)liveRhythmMacro.nextAt=now+(45000+rand()*90000);
+  if(liveRhythmMacro.mode==='chaos'){
+    if(now>=liveRhythmMacro.nextAt)enterLiveOrder(now);
+    return;
+  }
+  if(liveRhythmMacro.mode==='order'){
+    applyLiveOrder(now);
+    if(now>=liveRhythmMacro.until){liveRhythmMacro.breakStart=now;enterLiveBreakdown(now)}
+    return;
+  }
+  if(liveRhythmMacro.mode==='breakdown'){
+    applyLiveBreakdown(now);
+    if(now>=liveRhythmMacro.until)enterLiveChaos(now);
+  }
+}
+function liveGenerationStatus(){
+  if(!running)return ctx?'STOPPED':'READY — press PLAY';
+  if(!evolving)return 'GENERATING';
+  if(dailyVarietyMode)return 'GENERATING / RANDOM WALK';
+  if(liveRhythmMacro.mode==='order')return 'GENERATING / ORDER · '+(liveRhythmMacro.preset?.kind||'GROOVE')+' · '+Math.round(state.tempo)+' BPM';
+  if(liveRhythmMacro.mode==='breakdown')return 'GENERATING / BREAKDOWN';
+  return 'GENERATING / RANDOM WALK';
+}
+
 const walkAgents={ambient:{},rhythm:{},mixer:{}};let walkLast=performance.now(),walkReadoutAt=0;
 function makeWalkAgent(){return {v:(Math.random()<.5?-1:1)*(.003+Math.random()*.009),targetV:0,turnIn:.25+Math.random()*1.8,personality:.65+Math.random()*.9}}
 function resetWalkAgents(){walkAgents.ambient={};walkAgents.rhythm={};walkAgents.mixer={};for(const id of Object.keys(configs))walkAgents.ambient[id]=makeWalkAgent();for(const id of Object.keys(rhythmConfigs))walkAgents.rhythm[id]=makeWalkAgent();for(const id of Object.keys(mixerConfigs))walkAgents.mixer[id]=makeWalkAgent();walkLast=performance.now()}
 function walkParameter(target,id,c,range,agent,dt){if(!range||range.max<=range.min)return false;let n=toNorm(target[id],c),lo=toNorm(range.min,c),hi=toNorm(range.max,c);if(hi<lo)[lo,hi]=[hi,lo];n=clamp(n,lo,hi);agent.turnIn-=dt;const speed=meta.walkSpeed,depth=meta.depth;if(agent.turnIn<=0||!Number.isFinite(agent.targetV)){const sign=Math.random()<.5?-1:1;const mag=(.0035+Math.random()*.0135)*speed*agent.personality*(.55+.65*depth);agent.targetV=sign*mag;agent.turnIn=.35+Math.random()*(2.8/(.45+speed*.55))}const bend=1-Math.exp(-dt*(.45+speed*.7));agent.v+=(agent.targetV-agent.v)*bend;const minV=.0015*speed*agent.personality;if(Math.abs(agent.v)<minV)agent.v=(agent.v<0?-1:1)*minV;n+=agent.v*dt;if(n<=lo){n=lo+(lo-n);agent.v=Math.abs(agent.v);agent.targetV=Math.abs(agent.targetV||agent.v);agent.turnIn=.2+Math.random()*.9}if(n>=hi){n=hi-(n-hi);agent.v=-Math.abs(agent.v);agent.targetV=-Math.abs(agent.targetV||agent.v);agent.turnIn=.2+Math.random()*.9}n=clamp(n,lo,hi);target[id]=fromNorm(n,c);return true}
-function updateRandomWalk(now){const dt=Math.min(.08,Math.max(0,(now-walkLast)/1000));walkLast=now;if(evolving&&dt>0){for(const [id,c] of Object.entries(configs)){if(locked.has(id))continue;walkParameter(state,id,c,randomRanges[id],walkAgents.ambient[id]||(walkAgents.ambient[id]=makeWalkAgent()),dt);syncControl(id,state,c)}for(const [id,c] of Object.entries(rhythmConfigs)){if(rhythmLocked.has(id))continue;walkParameter(rhythmState,id,c,rhythmRandomRanges[id],walkAgents.rhythm[id]||(walkAgents.rhythm[id]=makeWalkAgent()),dt);syncRhythmControl(id)}for(const [id,c] of Object.entries(mixerConfigs)){if(mixerLocked.has(id))continue;walkParameter(mixerState,id,c,mixerRandomRanges[id],walkAgents.mixer[id]||(walkAgents.mixer[id]=makeWalkAgent()),dt);syncMixerControl(id)}grooveBlendAmount=clamp(rhythmState.grooveMix,0,1);if(now-walkReadoutAt>180){updateGrooveReadout();walkReadoutAt=now}applyGlobals();updateLivePalette(now);updateLiveNovelty(now)}requestAnimationFrame(updateRandomWalk)}
+function updateRandomWalk(now){const dt=Math.min(.08,Math.max(0,(now-walkLast)/1000));walkLast=now;if(evolving&&dt>0){updateLiveRhythmMacro(now);for(const [id,c] of Object.entries(configs)){if(locked.has(id)||liveRhythmMacroHolds('ambient',id))continue;walkParameter(state,id,c,randomRanges[id],walkAgents.ambient[id]||(walkAgents.ambient[id]=makeWalkAgent()),dt);syncControl(id,state,c)}for(const [id,c] of Object.entries(rhythmConfigs)){if(rhythmLocked.has(id)||liveRhythmMacroHolds('rhythm',id))continue;walkParameter(rhythmState,id,c,rhythmRandomRanges[id],walkAgents.rhythm[id]||(walkAgents.rhythm[id]=makeWalkAgent()),dt);syncRhythmControl(id)}for(const [id,c] of Object.entries(mixerConfigs)){if(mixerLocked.has(id))continue;walkParameter(mixerState,id,c,mixerRandomRanges[id],walkAgents.mixer[id]||(walkAgents.mixer[id]=makeWalkAgent()),dt);syncMixerControl(id)}grooveBlendAmount=clamp(rhythmState.grooveMix,0,1);if(now-walkReadoutAt>180){updateGrooveReadout();walkReadoutAt=now}applyGlobals();updateLivePalette(now);updateLiveNovelty(now)}requestAnimationFrame(updateRandomWalk)}
 resetWalkAgents();requestAnimationFrame(updateRandomWalk);
 function setContinuousRandom(on){evolving=!!on;morphState=null;rhythmMorphState=null;mixerMorphState=null;if(evolving){resetWalkAgents();if(running&&!dailyVarietyMode&&(!liveMaterialSubset||!liveMaterialSubset.size))changeLivePalette(true)}for(const id of ['evolve','continuousRandom']){const b=$('#'+id);if(!b)continue;b.classList.toggle('on',evolving);b.textContent=evolving?'RANDOM WALK ON':'RANDOM WALK OFF'}renderLivePalette();$('#status').textContent=evolving?(running?'GENERATING / RANDOM WALK':'RANDOM WALK / press PLAY'):(running?'GENERATING':(ctx?'STOPPED':'READY — press PLAY'))}
 $('#evolve').onclick=()=>setContinuousRandom(!evolving);$('#continuousRandom').onclick=()=>setContinuousRandom(!evolving);
