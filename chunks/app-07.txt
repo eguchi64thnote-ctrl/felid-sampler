@@ -311,7 +311,7 @@ async function endDailyPcmCapture(){
 function dailyOutputSlot(){
   const q=new URLSearchParams(location.search),s=q.get('slot');
   if(/^\d{4}$/.test(s||''))return s;
-  const h=new Date().getHours();return h<9?'0600':h<15?'1200':'1700';
+  const h=new Date().getHours();return h<9?'0600':h<15?'1200':'1600';
 }
 function dailyShortStamp(){
   const d=new Date(),yy=String(d.getFullYear()).slice(-2),mm=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
