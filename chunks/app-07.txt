@@ -460,12 +460,12 @@ const minimalGroove={genre:'house',lastBar:-1,targetBar:0,lastAt:0,targets:null,
 const MINIMAL_AUTO_GENRES=['hiphop','house','techno'];
 function minimalProfile(genre){
   const p={
-    hiphop:{bpm:[78,96],density:[.46,.62],complexity:[.12,.24],mutation:[.004,.018],grooveDrift:[0,.012],grooveMix:[0,.025],swing:[.10,.20],humanize:[.018,.045],slice:[1.10,1.40],pitch:[1.2,3.4],space:[.13,.22],breaks:[0,.018]},
-    house:{bpm:[116,126],density:[.62,.78],complexity:[.10,.20],mutation:[.003,.014],grooveDrift:[0,.009],grooveMix:[0,.018],swing:[0,.035],humanize:[.010,.030],slice:[1.10,1.40],pitch:[.6,2.2],space:[.08,.15],breaks:[0,.012]},
-    techno:{bpm:[124,136],density:[.64,.80],complexity:[.11,.22],mutation:[.003,.016],grooveDrift:[0,.010],grooveMix:[0,.018],swing:[0,.025],humanize:[.008,.026],slice:[1.10,1.40],pitch:[.5,2.0],space:[.07,.14],breaks:[0,.012]},
-    rnb:{bpm:[82,104],density:[.44,.60],complexity:[.13,.25],mutation:[.004,.020],grooveDrift:[0,.013],grooveMix:[0,.025],swing:[.12,.23],humanize:[.020,.050],slice:[1.10,1.40],pitch:[1.0,3.5],space:[.13,.23],breaks:[0,.018]},
-    jazz:{bpm:[92,122],density:[.42,.58],complexity:[.16,.28],mutation:[.005,.022],grooveDrift:[0,.014],grooveMix:[0,.028],swing:[.18,.30],humanize:[.025,.055],slice:[1.10,1.40],pitch:[1.0,3.7],space:[.15,.25],breaks:[0,.020]},
-    reggae:{bpm:[72,92],density:[.44,.60],complexity:[.11,.22],mutation:[.004,.018],grooveDrift:[0,.012],grooveMix:[0,.022],swing:[.03,.10],humanize:[.016,.042],slice:[1.10,1.40],pitch:[.8,3.0],space:[.13,.23],breaks:[0,.016]}
+    hiphop:{bpm:[78,96],density:[.46,.62],complexity:[.12,.24],mutation:[.004,.018],grooveDrift:[0,.012],grooveMix:[0,.025],swing:[.10,.20],humanize:[.018,.045],slice:[1.10,1.40],pitch:[0,.5],space:[.13,.22],breaks:[0,.018]},
+    house:{bpm:[116,126],density:[.62,.78],complexity:[.10,.20],mutation:[.003,.014],grooveDrift:[0,.009],grooveMix:[0,.018],swing:[0,.035],humanize:[.010,.030],slice:[1.10,1.40],pitch:[0,.5],space:[.08,.15],breaks:[0,.012]},
+    techno:{bpm:[124,136],density:[.64,.80],complexity:[.11,.22],mutation:[.003,.016],grooveDrift:[0,.010],grooveMix:[0,.018],swing:[0,.025],humanize:[.008,.026],slice:[1.10,1.40],pitch:[0,.5],space:[.07,.14],breaks:[0,.012]},
+    rnb:{bpm:[82,104],density:[.44,.60],complexity:[.13,.25],mutation:[.004,.020],grooveDrift:[0,.013],grooveMix:[0,.025],swing:[.12,.23],humanize:[.020,.050],slice:[1.10,1.40],pitch:[0,.5],space:[.13,.23],breaks:[0,.018]},
+    jazz:{bpm:[92,122],density:[.42,.58],complexity:[.16,.28],mutation:[.005,.022],grooveDrift:[0,.014],grooveMix:[0,.028],swing:[.18,.30],humanize:[.025,.055],slice:[1.10,1.40],pitch:[0,.5],space:[.15,.25],breaks:[0,.020]},
+    reggae:{bpm:[72,92],density:[.44,.60],complexity:[.11,.22],mutation:[.004,.018],grooveDrift:[0,.012],grooveMix:[0,.022],swing:[.03,.10],humanize:[.016,.042],slice:[1.10,1.40],pitch:[0,.5],space:[.13,.23],breaks:[0,.016]}
   };return p[genre]||p.house;
 }
 function minimalBetween(r){return r[0]+rand()*(r[1]-r[0])}
@@ -488,7 +488,7 @@ function chooseMinimalMicroTarget(){
   const cfg=rhythmConfigs[id],span=cfg.max-cfg.min;
   const scale={density:.010,complexity:.008,mutation:.004,grooveDrift:.004,grooveMix:.005,swing:.006,humanize:.004,slice:.010,pitch:.008,space:.007,breaks:.004}[id]||.006;
   const direction=rand()<.5?-1:1;
-  t[id]=clamp(rhythmState[id]+direction*span*scale*(.45+rand()*.55),cfg.min,cfg.max);
+  const lo=id==='pitch'?minimalProfile(minimalGroove.genre).pitch[0]:cfg.min,hi=id==='pitch'?minimalProfile(minimalGroove.genre).pitch[1]:cfg.max;t[id]=clamp(rhythmState[id]+direction*span*scale*(.45+rand()*.55),lo,hi);
   return t;
 }
 function updateGenerationModeUI(){
