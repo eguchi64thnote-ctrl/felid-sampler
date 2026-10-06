@@ -5,7 +5,7 @@ import path from 'node:path';
 const baseUrl = process.env.DAILY_BASE_URL || 'https://karesansui-in-the-air-gnr-mhver.vercel.app';
 const slot = process.env.DAILY_SLOT || (() => {
   const h=Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',hour:'2-digit',hour12:false}).format(new Date()));
-  return h<9?'0600':h<15?'1200':'1700';
+  return h<9?'0600':h<15?'1200':'1600';
 })();
 async function getFreshOidc() {
   if (process.env.ACTIONS_ID_TOKEN_REQUEST_URL && process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN) {
