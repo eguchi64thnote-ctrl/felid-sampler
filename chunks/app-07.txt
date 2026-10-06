@@ -456,28 +456,44 @@ window.addEventListener('beforeunload',saveLiveNoveltyHistory);
 
 // ---------- explicit generation modes ----------
 let generationMode='free';
-const minimalGroove={genre:'house',lastBar:-1,targetBar:0,lastAt:0,targets:null};
+const minimalGroove={genre:'house',lastBar:-1,targetBar:0,lastAt:0,targets:null,evolutionStep:0};
 const MINIMAL_AUTO_GENRES=['hiphop','house','techno'];
 function minimalProfile(genre){
   const p={
-    hiphop:{bpm:[78,96],density:[.54,.72],complexity:[.18,.34],mutation:[.015,.07],grooveDrift:[0,.035],grooveMix:[0,.07],swing:[.10,.22],humanize:[.025,.065],slice:[.30,.52],pitch:[1.2,4.2],space:[.12,.24],breaks:[0,.05],bars:[8,16]},
-    house:{bpm:[116,126],density:[.78,.98],complexity:[.16,.30],mutation:[.01,.055],grooveDrift:[0,.025],grooveMix:[0,.055],swing:[0,.055],humanize:[.012,.045],slice:[.18,.34],pitch:[.6,3.0],space:[.06,.16],breaks:[0,.035],bars:[8,16]},
-    techno:{bpm:[124,136],density:[.82,1.02],complexity:[.18,.34],mutation:[.01,.065],grooveDrift:[0,.03],grooveMix:[0,.05],swing:[0,.035],humanize:[.01,.035],slice:[.16,.30],pitch:[.5,2.6],space:[.05,.14],breaks:[0,.03],bars:[8,16]},
-    rnb:{bpm:[82,104],density:[.50,.72],complexity:[.20,.38],mutation:[.02,.08],grooveDrift:[0,.04],grooveMix:[0,.08],swing:[.12,.26],humanize:[.03,.075],slice:[.28,.52],pitch:[1.0,4.5],space:[.12,.25],breaks:[0,.055],bars:[8,16]},
-    jazz:{bpm:[92,122],density:[.44,.68],complexity:[.24,.44],mutation:[.02,.09],grooveDrift:[0,.04],grooveMix:[0,.08],swing:[.18,.34],humanize:[.04,.09],slice:[.24,.48],pitch:[1.0,4.8],space:[.14,.28],breaks:[0,.06],bars:[8,16]},
-    reggae:{bpm:[72,92],density:[.48,.68],complexity:[.16,.32],mutation:[.015,.07],grooveDrift:[0,.035],grooveMix:[0,.06],swing:[.03,.12],humanize:[.02,.06],slice:[.28,.50],pitch:[.8,3.8],space:[.12,.25],breaks:[0,.05],bars:[8,16]}
+    hiphop:{bpm:[78,96],density:[.46,.62],complexity:[.12,.24],mutation:[.004,.018],grooveDrift:[0,.012],grooveMix:[0,.025],swing:[.10,.20],humanize:[.018,.045],slice:[.30,.46],pitch:[1.2,3.4],space:[.13,.22],breaks:[0,.018]},
+    house:{bpm:[116,126],density:[.62,.78],complexity:[.10,.20],mutation:[.003,.014],grooveDrift:[0,.009],grooveMix:[0,.018],swing:[0,.035],humanize:[.010,.030],slice:[.20,.31],pitch:[.6,2.2],space:[.08,.15],breaks:[0,.012]},
+    techno:{bpm:[124,136],density:[.64,.80],complexity:[.11,.22],mutation:[.003,.016],grooveDrift:[0,.010],grooveMix:[0,.018],swing:[0,.025],humanize:[.008,.026],slice:[.18,.29],pitch:[.5,2.0],space:[.07,.14],breaks:[0,.012]},
+    rnb:{bpm:[82,104],density:[.44,.60],complexity:[.13,.25],mutation:[.004,.020],grooveDrift:[0,.013],grooveMix:[0,.025],swing:[.12,.23],humanize:[.020,.050],slice:[.28,.46],pitch:[1.0,3.5],space:[.13,.23],breaks:[0,.018]},
+    jazz:{bpm:[92,122],density:[.42,.58],complexity:[.16,.28],mutation:[.005,.022],grooveDrift:[0,.014],grooveMix:[0,.028],swing:[.18,.30],humanize:[.025,.055],slice:[.25,.44],pitch:[1.0,3.7],space:[.15,.25],breaks:[0,.020]},
+    reggae:{bpm:[72,92],density:[.44,.60],complexity:[.11,.22],mutation:[.004,.018],grooveDrift:[0,.012],grooveMix:[0,.022],swing:[.03,.10],humanize:[.016,.042],slice:[.28,.45],pitch:[.8,3.0],space:[.13,.23],breaks:[0,.016]}
   };return p[genre]||p.house;
 }
 function minimalBetween(r){return r[0]+rand()*(r[1]-r[0])}
-function chooseMinimalTarget(genre){
+function chooseMinimalBase(genre){
   const p=minimalProfile(genre);
   return {
     tempo:Math.round(minimalBetween(p.bpm)),
     density:minimalBetween(p.density),complexity:minimalBetween(p.complexity),mutation:minimalBetween(p.mutation),
     grooveDrift:minimalBetween(p.grooveDrift),grooveMix:minimalBetween(p.grooveMix),swing:minimalBetween(p.swing),
     humanize:minimalBetween(p.humanize),slice:minimalBetween(p.slice),pitch:minimalBetween(p.pitch),
-    space:minimalBetween(p.space),breaks:minimalBetween(p.breaks),evolveBars:p.bars[Math.floor(rand()*p.bars.length)]
+    space:minimalBetween(p.space),breaks:minimalBetween(p.breaks),evolveBars:16
   };
+}
+const MINIMAL_MICRO_IDS=['density','complexity','mutation','grooveDrift','grooveMix','swing','humanize','slice','pitch','space','breaks'];
+function chooseMinimalMicroTarget(){
+  const t={tempo:state.tempo};
+  for(const id of MINIMAL_MICRO_IDS)t[id]=rhythmState[id];
+  t.evolveBars=rhythmState.evolveBars;
+  const id=MINIMAL_MICRO_IDS[Math.floor(rand()*MINIMAL_MICRO_IDS.length)];
+  const cfg=rhythmConfigs[id],span=cfg.max-cfg.min;
+  const scale={density:.010,complexity:.008,mutation:.004,grooveDrift:.004,grooveMix:.005,swing:.006,humanize:.004,slice:.010,pitch:.008,space:.007,breaks:.004}[id]||.006;
+  const direction=rand()<.5?-1:1;
+  t[id]=clamp(rhythmState[id]+direction*span*scale*(.45+rand()*.55),cfg.min,cfg.max);
+  if(rand()<.18){
+    const tempoStep=rand()<.5?-1:1;
+    t.tempo=clamp(state.tempo+tempoStep,configs.tempo.min,configs.tempo.max);
+  }
+  return t;
 }
 function updateGenerationModeUI(){
   $('#freeMode')?.classList.toggle('on',generationMode==='free');
@@ -492,31 +508,39 @@ function configureMinimalGroove(force=false){
   if(genre==='auto'||!GROOVES[genre])genre=(force||!GROOVES[minimalGroove.genre])?MINIMAL_AUTO_GENRES[Math.floor(rand()*MINIMAL_AUTO_GENRES.length)]:minimalGroove.genre;
   minimalGroove.genre=genre;grooveFocus=genre;groovePrimary=genre;grooveSecondary=genre;grooveBlendAmount=0;
   divisionFocus=4;currentDivision=4;setLiveRhythmOn(true);
-  const t=chooseMinimalTarget(genre);minimalGroove.targets=t;minimalGroove.targetBar=rhythmBar+Math.max(4,Math.round(t.evolveBars));minimalGroove.lastBar=rhythmBar;minimalGroove.lastAt=performance.now();
   if(force){
+    const t=chooseMinimalBase(genre);
     state.tempo=snapConfigValue(t.tempo,configs.tempo);syncControl('tempo',state,configs.tempo);
-    for(const id of ['density','complexity','mutation','grooveDrift','grooveMix','swing','humanize','slice','pitch','space','breaks','evolveBars']){
-      rhythmState[id]=snapConfigValue(t[id],rhythmConfigs[id]);syncRhythmControl(id)
-    }
+    for(const id of MINIMAL_MICRO_IDS){rhythmState[id]=snapConfigValue(t[id],rhythmConfigs[id]);syncRhythmControl(id)}
+    rhythmState.evolveBars=16;syncRhythmControl('evolveBars');
+    minimalGroove.evolutionStep=0;
   }
+  minimalGroove.targets=chooseMinimalMicroTarget();
+  minimalGroove.targetBar=rhythmBar+16;
+  minimalGroove.lastBar=rhythmBar;minimalGroove.lastAt=performance.now();
   updateGrooveButtons();updateDivisionButtons();rebuildCurrentRhythmPattern();updateGrooveReadout();applyGlobals();
 }
 function updateMinimalGroove(now){
   if(generationMode!=='minimal'||!evolving||dailyVarietyMode)return;
   if(!minimalGroove.targets)configureMinimalGroove(true);
   if(rhythmBar>=minimalGroove.targetBar){
-    minimalGroove.targets=chooseMinimalTarget(minimalGroove.genre);
-    minimalGroove.targetBar=rhythmBar+Math.max(4,Math.round(minimalGroove.targets.evolveBars));
-    rebuildCurrentRhythmPattern();
+    minimalGroove.targets=chooseMinimalMicroTarget();
+    minimalGroove.targetBar=rhythmBar+16;
+    minimalGroove.evolutionStep++;
   }
   const dt=Math.min(.1,Math.max(.001,(now-(minimalGroove.lastAt||now))/1000));minimalGroove.lastAt=now;
-  const a=1-Math.exp(-dt/7.5),t=minimalGroove.targets;
+  const a=1-Math.exp(-dt/24),t=minimalGroove.targets;
   state.tempo=snapConfigValue(state.tempo+(t.tempo-state.tempo)*a,configs.tempo);syncControl('tempo',state,configs.tempo);
-  for(const id of ['density','complexity','mutation','grooveDrift','grooveMix','swing','humanize','slice','pitch','space','breaks','evolveBars']){
+  for(const id of MINIMAL_MICRO_IDS){
     rhythmState[id]=snapConfigValue(rhythmState[id]+(t[id]-rhythmState[id])*a,rhythmConfigs[id]);syncRhythmControl(id)
   }
-  grooveFocus=minimalGroove.genre;groovePrimary=minimalGroove.genre;grooveBlendAmount=clamp(rhythmState.grooveMix,0,.10);divisionFocus=4;currentDivision=4;
-  if(rhythmBar!==minimalGroove.lastBar){minimalGroove.lastBar=rhythmBar;rebuildCurrentRhythmPattern();updateGrooveReadout()}
+  rhythmState.evolveBars=16;
+  grooveFocus=minimalGroove.genre;groovePrimary=minimalGroove.genre;grooveSecondary=minimalGroove.genre;grooveBlendAmount=clamp(rhythmState.grooveMix,0,.03);divisionFocus=4;currentDivision=4;
+  if(rhythmBar!==minimalGroove.lastBar){
+    minimalGroove.lastBar=rhythmBar;
+    if(rhythmBar%4===0)rebuildCurrentRhythmPattern();
+    updateGrooveReadout();
+  }
   applyGlobals();
 }
 function setGenerationMode(mode){
