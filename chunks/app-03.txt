@@ -29,7 +29,7 @@ function updateDivisionReadout(){const el=$('#divisionReadout');if(el)el.textCon
 function setDivisionFocus(v){if(v!=='auto'&&!DIVISION_OPTIONS.includes(Number(v)))return;divisionFocus=v;currentDivision=v==='auto'?DIVISION_OPTIONS[Math.floor(rand()*DIVISION_OPTIONS.length)]:Number(v);rhythmStep=0;if(ctx)rhythmNextStep=ctx.currentTime+.04;updateDivisionButtons();newGroove(true);updateDivisionReadout()}
 document.querySelectorAll('#divisionGrid button').forEach(b=>b.onclick=()=>setDivisionFocus(b.dataset.division));
 updateDivisionButtons();updateDivisionReadout();
-function rhythmPlayableIndices(){const m=[];for(const mat of MATERIALS.values()){const g=GROUPS.get(mat.groupId);if(!g||!g.active||!mat.enabled)continue;for(const i of mat.sampleIndices)if(buffers[i]&&!SAMPLE_DATA[i]?.disabled)m.push(i)}return m}
+function rhythmPlayableIndices(){const m=[];for(const mat of MATERIALS.values()){const g=GROUPS.get(mat.groupId);if(!g||!g.active||!mat.enabled||!dailyMaterialAllowed(mat.id))continue;for(const i of mat.sampleIndices)if(buffers[i]&&!SAMPLE_DATA[i]?.disabled)m.push(i)}return m}
 function freshMagicSample(role){let arr=rhythmPlayableIndices();if(!arr.length)return -1;const rs=rhythmRoleState[role];
   if(rs.sample>=0&&arr.includes(rs.sample)&&rand()>(dailyVarietyMode ? .52 : (.18+.55*rhythmState.mutation)))return rs.sample;
   if(dailyVarietyMode){const newer=arr.filter(i=>!dailyRecentSamples.includes(i));if(newer.length)arr=newer}
