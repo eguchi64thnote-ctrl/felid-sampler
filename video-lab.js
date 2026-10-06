@@ -133,45 +133,158 @@ function randomImage(exclude=-1){
   return lastImageIndex;
 }
 function rectArea(r){return r.w*r.h}
-function generateRandomGrid(){
-  const desired=clamp(Math.round(Number(maxLayers.value)+rand(-1.5,1.5)),3,10);
-  let rects=[{x:0,y:0,w:1,h:1,id:0}];
-  let guard=0;
-  while(rects.length<desired&&guard++<80){
-    const candidates=rects
-      .map((r,i)=>({r,i,score:rectArea(r)*(0.65+Math.random()*.7)}))
-      .filter(o=>o.r.w>.28||o.r.h>.25)
+function splitRect(r,vertical,ratio){
+  if(vertical){
+    return [
+      {x:r.x,y:r.y,w:r.w*ratio,h:r.h},
+      {x:r.x+r.w*ratio,y:r.y,w:r.w*(1-ratio),h:r.h}
+    ];
+  }
+  return [
+    {x:r.x,y:r.y,w:r.w,h:r.h*ratio},
+    {x:r.x,y:r.y+r.h*ratio,w:r.w,h:r.h*(1-ratio)}
+  ];
+}
+function subdivideZone(zone,count){
+  let cells=[{...zone}],guard=0;
+  while(cells.length<count&&guard++<80){
+    const candidates=cells
+      .map((r,i)=>({r,i,score:rectArea(r)*(0.45+Math.random()*1.3)}))
+      .filter(o=>o.r.w>.11||o.r.h>.11)
       .sort((a,b)=>b.score-a.score);
     if(!candidates.length)break;
     const {r,i}=candidates[0];
+
     let vertical;
-    if(r.w/r.h>1.25)vertical=true;
-    else if(r.h/r.w>1.25)vertical=false;
+    const ar=r.w/r.h;
+    if(ar>1.7)vertical=true;
+    else if(ar<.58)vertical=false;
     else vertical=Math.random()<.5;
-    const ratio=rand(.30,.70);
-    let a,b;
-    if(vertical){
-      if(r.w<.34)continue;
-      a={x:r.x,y:r.y,w:r.w*ratio,h:r.h};
-      b={x:r.x+r.w*ratio,y:r.y,w:r.w*(1-ratio),h:r.h};
+
+    let ratio;
+    const extreme=Math.random()<.46;
+    ratio=extreme?pick([rand(.16,.30),rand(.70,.84)]):rand(.34,.66);
+
+    const parts=splitRect(r,vertical,ratio);
+    if(parts.some(p=>p.w<.055||p.h<.045)){
+      ratio=rand(.38,.62);
+      const retry=splitRect(r,vertical,ratio);
+      if(retry.some(p=>p.w<.05||p.h<.04))continue;
+      cells.splice(i,1,...retry);
     }else{
-      if(r.h<.28)continue;
-      a={x:r.x,y:r.y,w:r.w,h:r.h*ratio};
-      b={x:r.x,y:r.y+r.h*ratio,w:r.w,h:r.h*(1-ratio)};
+      cells.splice(i,1,...parts);
     }
-    rects.splice(i,1,a,b);
   }
-  gridRects=rects.map((r,i)=>({...r,id:i}));
+  return cells;
 }
-function chooseGridCell(){
+function decorateCell(r,zoneIndex){
+  const area=rectArea(r),ar=r.w/r.h;
+  let sizeClass='m';
+  if(area<.045)sizeClass='xs';
+  else if(area<.09)sizeClass='s';
+  else if(area>.28)sizeClass='xl';
+  else if(area>.17)sizeClass='l';
+
+  const strip=(ar>3.2||ar<.31);
+  let out={...r,zoneIndex,sizeClass,strip};
+
+  // Occasionally let edge pieces continue beyond the frame, while staying axis-aligned.
+  if(Math.random()<.22){
+    const bleed=rand(.025,.085);
+    if(out.x<.03){out.x-=bleed;out.w+=bleed}
+    else if(out.x+out.w>.97){out.w+=bleed}
+    if(Math.random()<.55){
+      if(out.y<.03){out.y-=bleed;out.h+=bleed}
+      else if(out.y+out.h>.97){out.h+=bleed}
+    }
+  }
+  return out;
+}
+function generateRandomGrid(){
+  const zoneCount=Math.floor(rand(2,5));
+  let zones=[{x:0,y:0,w:1,h:1}],guard=0;
+
+  while(zones.length<zoneCount&&guard++<40){
+    const idx=Math.floor(Math.random()*zones.length);
+    const r=zones[idx];
+    const ar=r.w/r.h;
+    let vertical=ar>1.25?true:ar<.8?false:Math.random()<.5;
+    const ratio=Math.random()<.55?pick([rand(.22,.36),rand(.64,.78)]):rand(.4,.6);
+    const parts=splitRect(r,vertical,ratio);
+    if(parts.some(p=>p.w<.16||p.h<.13))continue;
+    zones.splice(idx,1,...parts);
+  }
+
+  const target=clamp(Math.round(Number(maxLayers.value)+rand(1,5)),5,14);
+  let remaining=target;
+  let cells=[];
+
+  zones.forEach((z,zi)=>{
+    const zonesLeft=zones.length-zi;
+    const minForRest=zonesLeft-1;
+    let n=zi===zones.length-1?remaining:clamp(Math.round(rand(1,Math.max(2,remaining-minForRest+1))),1,5);
+    // Give some zones dense clusters and others very sparse hero areas.
+    if(Math.random()<.35)n=1;
+    else if(Math.random()<.45)n=clamp(n+2,2,6);
+    n=Math.min(n,remaining-minForRest);
+    remaining-=n;
+    const local=subdivideZone(z,n).map(r=>decorateCell(r,zi));
+    cells.push(...local);
+  });
+
+  // Add occasional large spanning pieces that borrow a neighboring zone edge.
+  if(cells.length&&Math.random()<.7){
+    const heroSource=pick(cells.filter(r=>rectArea(r)>.08)||cells);
+    const growX=rand(.05,.18),growY=rand(.04,.16);
+    const hero={
+      x:clamp(heroSource.x-growX*(Math.random()<.5?1:0),-.08,.92),
+      y:clamp(heroSource.y-growY*(Math.random()<.5?1:0),-.08,.92),
+      w:clamp(heroSource.w+growX,.18,.82),
+      h:clamp(heroSource.h+growY,.14,.72),
+      zoneIndex:heroSource.zoneIndex,
+      sizeClass:'xl',
+      strip:false,
+      spanning:true
+    };
+    cells.push(hero);
+  }
+
+  gridRects=cells.map((r,i)=>({...r,id:i}));
+}
+function chooseGridCell(mode='neutral'){
   if(!gridRects.length)generateRandomGrid();
+
   const occupied=new Set(visualLayers.filter(l=>l.releaseStart===null).map(l=>l.cellId));
-  const empty=gridRects.filter(r=>!occupied.has(r.id));
-  if(empty.length)return pick(empty);
-  const weights=gridRects.map(r=>({r,w:.35+rectArea(r)*2.2+Math.random()*.45}));
-  const total=weights.reduce((s,o)=>s+o.w,0);let p=Math.random()*total;
-  for(const o of weights){p-=o.w;if(p<=0)return o.r}
-  return gridRects[gridRects.length-1];
+  const pool=gridRects.map(r=>{
+    const area=rectArea(r);
+    let w=.3+Math.random()*.35;
+
+    if(mode==='sharp'){
+      // Sharp attacks prefer smaller / thinner pieces.
+      w+=(1-clamp(area/.30,0,1))*2.2;
+      if(r.strip)w+=1.7;
+      if(r.sizeClass==='xs'||r.sizeClass==='s')w+=1.1;
+      if(r.sizeClass==='xl')w*=.35;
+    }else if(mode==='soft'){
+      // Soft envelopes prefer large hero pieces and breathing room.
+      w+=clamp(area/.28,0,1)*2.6;
+      if(r.sizeClass==='l'||r.sizeClass==='xl')w+=1.3;
+      if(r.strip)w*=.45;
+    }else{
+      w+=.65+Math.abs(.14-area)*.8;
+    }
+
+    if(!occupied.has(r.id))w*=1.8;
+    else w*=.72;
+    if(r.spanning)w*=mode==='soft'?1.5:.8;
+
+    return {r,w:Math.max(.02,w)};
+  });
+
+  const total=pool.reduce((s,o)=>s+o.w,0);
+  let p=Math.random()*total;
+  for(const o of pool){p-=o.w;if(p<=0)return o.r}
+  return pool[pool.length-1].r;
 }
 function computeCoverCrop(img,targetAspect,mode){
   const iw=img.naturalWidth,ih=img.naturalHeight;
@@ -196,7 +309,7 @@ function releaseCell(cellId,mode,now){
 }
 function spawnLayer(mode,s,now,kind='main'){
   if(!gridRects.length)generateRandomGrid();
-  const cell=chooseGridCell(),style=transitionStyle.value,inten=Number(intensity.value)/100;
+  const cell=chooseGridCell(mode),style=transitionStyle.value,inten=Number(intensity.value)/100;
   releaseCell(cell.id,mode,now);
 
   const imgIndex=randomImage(lastImageIndex),img=images[imgIndex].img;
