@@ -3,6 +3,10 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const baseUrl = process.env.DAILY_BASE_URL || 'https://karesansui-in-the-air-gnr-mhver.vercel.app';
+const slot = process.env.DAILY_SLOT || (() => {
+  const h=Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',hour:'2-digit',hour12:false}).format(new Date()));
+  return h<9?'0600':h<15?'1200':'1700';
+})();
 async function getFreshOidc() {
   if (process.env.ACTIONS_ID_TOKEN_REQUEST_URL && process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN) {
     const sep = process.env.ACTIONS_ID_TOKEN_REQUEST_URL.includes('?') ? '&' : '?';
@@ -32,7 +36,7 @@ function tokyoDate() {
 async function uploadFile(filePath, date) {
   const name = path.basename(filePath);
   const contentType = name.endsWith('.wav') ? 'audio/wav' : 'application/json';
-  const pathname = 'daily/' + date + '/' + name;
+  const pathname = 'daily/' + date + '/' + slot + '/' + name;
   const oidc = await getFreshOidc();
   const sign = await fetch(baseUrl + '/api/sign-upload', {
     method: 'POST',
@@ -61,7 +65,7 @@ page.setDefaultTimeout(60_000);
 
 let success = false;
 for (let batchAttempt = 1; batchAttempt <= 2 && !success; batchAttempt++) {
-  await page.goto(baseUrl + '/?daily_automation=1', { waitUntil: 'networkidle', timeout: 120_000 });
+  await page.goto(baseUrl + '/?daily_automation=1&slot=' + encodeURIComponent(slot), { waitUntil: 'networkidle', timeout: 120_000 });
   await page.locator('#daily3').click();
   await page.waitForFunction(() => {
     const s = document.querySelector('#dailyStatus')?.textContent || '';
@@ -100,13 +104,14 @@ const uploaded = [];
 for (const name of await readdir(outDir)) {
   uploaded.push(await uploadFile(path.join(outDir, name), date));
 }
-const manifestPath = path.join(outDir, date + '_manifest.json');
+const manifestPath = path.join(outDir, date + '_' + slot + '_manifest.json');
 await writeFile(manifestPath, JSON.stringify({
   date,
+  slot,
   generatedAt: new Date().toISOString(),
   files: uploaded,
   source: baseUrl,
 }, null, 2));
 await uploadFile(manifestPath, date);
 
-console.log(JSON.stringify({ date, uploaded }, null, 2));
+console.log(JSON.stringify({ date, slot, uploaded }, null, 2));
