@@ -8,6 +8,8 @@ let images=[],raf=0,mediaRecorder=null,chunks=[],previewing=false,recording=fals
 let selectedStart=0,selectedDuration=30,analysisCandidates=[];
 let audioMode='wav',liveBus=null,liveStartedAt=0;
 let visualLayers=[],gridRects=[],lastEnergy=0,lastHigh=0,beatFloor=.08,lastSpawn=0,flashAlpha=0,energyHistory=[],lastImageIndex=-1;
+let freqData=null,lastVisualFrame=0;
+const LIVE_PREVIEW_SIZE=[540,960],LIVE_RECORD_SIZE=[720,1280],WAV_SIZE=[1080,1920];
 
 function fmt(sec){sec=Math.max(0,sec||0);const m=Math.floor(sec/60),s=Math.floor(sec%60);return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
 function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
@@ -15,6 +17,17 @@ function std(a){const m=avg(a);return Math.sqrt(avg(a.map(v=>(v-m)*(v-m))))}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function rand(a=1,b=null){if(b===null){b=a;a=0}return a+Math.random()*(b-a)}
 function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
+function setCanvasSize(w,h){if(canvas.width!==w)canvas.width=w;if(canvas.height!==h)canvas.height=h}
+function optimizeImageSource(img,maxDim=1600){
+  const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;
+  const scale=Math.min(1,maxDim/Math.max(iw,ih));
+  if(scale>=.995)return img;
+  const cv=document.createElement('canvas');
+  cv.width=Math.max(1,Math.round(iw*scale));cv.height=Math.max(1,Math.round(ih*scale));
+  const cx=cv.getContext('2d',{alpha:false});
+  cx.drawImage(img,0,0,cv.width,cv.height);
+  return cv;
+}
 function updateLabels(){
   $('#intensityOut').textContent=intensity.value+'%';$('#layersOut').textContent=maxLayers.value;$('#zoomOut').textContent=zoom.value+'%';
   $('#shakeOut').textContent=shake.value+'%';$('#brightOut').textContent=bright.value+'%';$('#trailOut').textContent=trail.value+'%';$('#blurOut').textContent=blur.value+'%';
@@ -142,11 +155,14 @@ repickBtn.onclick=()=>autoPickExcerpt(true);
 imageInput.addEventListener('change',async()=>{
   images.forEach(x=>URL.revokeObjectURL(x.url));images=[];
   for(const f of [...(imageInput.files||[])]){
-    const url=URL.createObjectURL(f),img=new Image();img.src=url;await img.decode().catch(()=>{});
-    if(img.naturalWidth)images.push({img,url,name:f.name});
+    const url=URL.createObjectURL(f),raw=new Image();raw.src=url;await raw.decode().catch(()=>{});
+    if(raw.naturalWidth){
+      const img=optimizeImageSource(raw,1600);
+      images.push({img,url,name:f.name});
+    }
   }
   $('#thumbs').innerHTML='';images.slice(0,30).forEach(x=>{const im=document.createElement('img');im.src=x.url;$('#thumbs').appendChild(im)});
-  statusEl.textContent=images.length+' photos ready';ready();
+  statusEl.textContent=images.length+' photos ready · optimized for realtime';ready();
 });
 
 async function ensurePlaybackAudio(){
@@ -160,7 +176,8 @@ async function ensurePlaybackAudio(){
   await audioCtx.resume();
 }
 function spectrum(now){
-  const a=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(a);
+  if(!freqData||freqData.length!==analyser.frequencyBinCount)freqData=new Uint8Array(analyser.frequencyBinCount);
+  const a=freqData;analyser.getByteFrequencyData(a);
   const band=(s,e)=>{let sum=0,n=0;for(let i=s;i<Math.min(e,a.length);i++){sum+=a[i];n++}return n?sum/n/255:0};
   const low=band(0,26),mid=band(26,120),high=band(120,380),total=band(0,a.length);
   const energy=low*.48+mid*.34+high*.18,onset=Math.max(0,energy-lastEnergy),highOnset=Math.max(0,high-lastHigh);
@@ -342,7 +359,7 @@ function chooseGridCell(mode='neutral'){
   return pool[pool.length-1].r;
 }
 function computeCoverCrop(img,targetAspect,mode){
-  const iw=img.naturalWidth,ih=img.naturalHeight;
+  const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;
   let sw=iw,sh=ih;
   if(iw/ih>targetAspect)sw=ih*targetAspect;
   else sh=iw/targetAspect;
@@ -434,7 +451,7 @@ function spawnLayer(mode,s,now,kind='main'){
     blurStart:(Number(blur.value)/100)*(sharp?1:soft?10:5)
   });
 
-  const hardMax=Math.max(Number(maxLayers.value)+8,18);
+  const hardMax=audioMode==='live'?Math.min(14,Math.max(Number(maxLayers.value)+3,10)):Math.max(Number(maxLayers.value)+8,18);
   while(visualLayers.length>hardMax)visualLayers.shift();
 }
 function updateReleases(s,now){
@@ -507,8 +524,10 @@ function drawGalleryPiece(layer,now,s){
 
   ctx.save();
   ctx.globalAlpha=a;
-  ctx.filter='brightness('+br.toFixed(3)+')'+(blurPx>.1?' blur('+blurPx.toFixed(1)+'px)':'');
-  ctx.shadowColor='rgba(0,0,0,.10)';ctx.shadowBlur=10;ctx.shadowOffsetY=2;
+  if(audioMode!=='live'){
+    ctx.filter='brightness('+br.toFixed(3)+')'+(blurPx>.1?' blur('+blurPx.toFixed(1)+'px)':'');
+    ctx.shadowColor='rgba(0,0,0,.10)';ctx.shadowBlur=10;ctx.shadowOffsetY=2;
+  }
   ctx.drawImage(img,c.sx,c.sy,c.sw,c.sh,dx,dy,dw,dh);
   ctx.restore();
 }
@@ -529,6 +548,9 @@ function renderLayers(now,s){
 }
 function drawFrame(now){
   if(!previewing||!analyser||!images.length)return;
+  const frameInterval=1000/30;
+  if(now-lastVisualFrame<frameInterval){raf=requestAnimationFrame(drawFrame);return}
+  lastVisualFrame=now;
   const s=spectrum(now),ev=updateEvents(s,now);renderLayers(now,s);
   const elapsed=audioMode==='live'?(now-liveStartedAt)/1000:(audioEl?audioEl.currentTime-selectedStart:0);
   hud.textContent=fmt(Math.max(0,elapsed))+(audioMode==='live'?' · LIVE':' / 00:30')+' · '+ev.env.toUpperCase()+' · LOW '+Math.round(s.low*100)+' MID '+Math.round(s.mid*100)+' HIGH '+Math.round(s.high*100)+(ev.beatHit?' · BEAT':'')+(ev.fxHit?' · FX':'')+' · CHAOS '+Math.round((ev.activity||0)*100);
@@ -548,7 +570,10 @@ async function startPreview(doRecord=false){
   }else{
     await ensurePlaybackAudio();
   }
-  visualLayers=[];gridRects=[];lastEnergy=0;lastHigh=0;beatFloor=.08;lastSpawn=0;flashAlpha=0;energyHistory=[];lastImageIndex=-1;generateRandomGrid();
+  if(audioMode==='live'){
+    const size=doRecord?LIVE_RECORD_SIZE:LIVE_PREVIEW_SIZE;setCanvasSize(size[0],size[1]);
+  }else setCanvasSize(WAV_SIZE[0],WAV_SIZE[1]);
+  visualLayers=[];gridRects=[];lastEnergy=0;lastHigh=0;beatFloor=.08;lastSpawn=0;flashAlpha=0;energyHistory=[];lastImageIndex=-1;lastVisualFrame=0;generateRandomGrid();
   previewing=true;recording=doRecord;liveStartedAt=performance.now();stopBtn.disabled=false;previewBtn.disabled=true;recordBtn.disabled=true;repickBtn.disabled=true;downloadLink.classList.remove('show');
   if(audioMode==='wav')audioEl.currentTime=selectedStart;
   if(doRecord){
@@ -587,6 +612,6 @@ $('#randomizeBtn').onclick=()=>{
   bright.value=Math.round(rand(10,38));trail.value=Math.round(rand(8,42));blur.value=Math.round(rand(0,38));
   transitionStyle.value=['soft','dynamic','sparse'][Math.floor(Math.random()*3)];updateLabels();
 };
-canvas.width=1080;canvas.height=1920;
+setCanvasSize(WAV_SIZE[0],WAV_SIZE[1]);
 if(new URLSearchParams(location.search).get('studio')==='1')setAudioMode('live');else setAudioMode('wav');
 ready();
