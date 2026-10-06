@@ -3,9 +3,11 @@
 $('#audioUpload').addEventListener('change',e=>uploadFiles(e.target.files));
 
 function applyGlobals(){if(!ctx)return;const now=ctx.currentTime;master.gain.cancelScheduledValues(now);master.gain.setTargetAtTime(running?mixerState.master:.0001,now,.08);ambientBus.gain.setTargetAtTime(state.level,now,.08);rhythmSampleBus.gain.setTargetAtTime(mixerState.sampleRhythm,now,.06);eightOhEightBus.gain.setTargetAtTime(mixerState.e808mix,now,.06);for(const role of ['kick','snare','hat','perc']){if(rhythmRoleBuses[role])rhythmRoleBuses[role].gain.setTargetAtTime(mixerState[role],now,.04);if(e808RoleBuses[role])e808RoleBuses[role].gain.setTargetAtTime(mixerState['e808'+role],now,.04)}if(e808RoleBuses.bass)e808RoleBuses.bass.gain.setTargetAtTime(mixerState.e808bass,now,.04);rhythmDelaySend.gain.setTargetAtTime(rhythmState.space*.34,now,.08);rhythmReverbSend.gain.setTargetAtTime(rhythmState.space*.28,now,.08);delayGain.gain.setTargetAtTime(state.delay,now,.08);feedbackGain.gain.setTargetAtTime(state.feedback,now,.1);reverbGain.gain.setTargetAtTime(state.reverb,now,.1);const d=(60/state.tempo)*.75;delayNode.delayTime.setTargetAtTime(clamp(d,.05,1.5),now,.08)}
-function materialPlayable(m){return m&&m.enabled&&m.sampleIndices.some(i=>buffers[i]&&!SAMPLE_DATA[i]?.disabled)}
+let dailyMaterialSubset=null;
+function dailyMaterialAllowed(materialId){return !dailyVarietyMode||!dailyMaterialSubset||dailyMaterialSubset.has(materialId)}
+function materialPlayable(m){return m&&m.enabled&&dailyMaterialAllowed(m.id)&&m.sampleIndices.some(i=>buffers[i]&&!SAMPLE_DATA[i]?.disabled)}
 function groupPlayable(g){return g&&g.active&&[...MATERIALS.values()].some(m=>m.groupId===g.id&&materialPlayable(m))}
-function indexPlayable(i){const d=SAMPLE_DATA[i],m=d&&MATERIALS.get(d.materialId),g=m&&GROUPS.get(m.groupId);return !!(buffers[i]&&m&&g&&m.enabled&&g.active&&!d.disabled)}
+function indexPlayable(i){const d=SAMPLE_DATA[i],m=d&&MATERIALS.get(d.materialId),g=m&&GROUPS.get(m.groupId);return !!(buffers[i]&&m&&g&&m.enabled&&g.active&&dailyMaterialAllowed(m.id)&&!d.disabled)}
 function weightedGroup(){const arr=[...GROUPS.values()].filter(groupPlayable);if(!arr.length)return null;let total=arr.reduce((a,g)=>a+Math.max(.01,g.weight||1),0),r=rand()*total;for(const g of arr){r-=Math.max(.01,g.weight||1);if(r<=0)return g}return arr[arr.length-1]}
 let dailyVarietyMode=false;
 const dailyRecentSamples=[];
