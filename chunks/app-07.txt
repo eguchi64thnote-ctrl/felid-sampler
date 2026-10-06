@@ -474,7 +474,7 @@ function randomMinimal808Target(genre,fromCurrent=false){
   for(const id of MINIMAL_808_IDS){
     const [lo,hi]=p[id],cfg=mixerConfigs[id],raw=lo+rand()*(hi-lo);
     if(fromCurrent){
-      const current=clamp(mixerState[id],lo,hi),maxStep=(hi-lo)*(id==='e808kick'||id==='e808mix'?.16:.28);
+      const current=clamp(mixerState[id],lo,hi),maxStep=(hi-lo)*((id==='e808kick'||id==='e808mix')?.16:.28);
       out[id]=snapConfigValue(clamp(raw,current-maxStep,current+maxStep),cfg);
     }else out[id]=snapConfigValue(raw,cfg);
   }
