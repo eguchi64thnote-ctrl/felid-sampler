@@ -195,9 +195,25 @@ function makeDefault1Snapshot(){
   const rangesFrom=defs=>Object.fromEntries(Object.entries(defs).map(([id,c])=>[id,{min:c.rmin??c.min,max:c.rmax??c.max}]));
   return {version:1,savedAt:0,state:valuesFrom(configs),meta:valuesFrom(metaConfigs),rhythmState:valuesFrom(rhythmConfigs),mixerState:valuesFrom(mixerConfigs),randomRanges:rangesFrom(configs),rhythmRandomRanges:rangesFrom(rhythmConfigs),mixerRandomRanges:rangesFrom(mixerConfigs),holds:{ambient:[],rhythm:[],mixer:['e808kick','bassAttack','bassRelease']},randomWalk:true,rhythm:{on:false,grooveFocus:'auto',groovePrimary:'house',grooveSecondary:'jazz',grooveBlendAmount:.05,divisionFocus:'auto',currentDivision:11},groups:[...GROUPS.values()].map(g=>({id:g.id,active:g.builtin?true:false,weight:g.builtin?1:(Number(g.weight)||1)})),materials:[...MATERIALS.values()].map(m=>({id:m.id,enabled:m.builtin?true:false,groupId:m.groupId}))};
 }
-function restoreDefault1(){restoreSnapshotData(makeDefault1Snapshot(),'DEFAULT 1')}
-function restoreDefault2(){restoreSnapshotData(default2Snapshot,'DEFAULT 2')}
-function restoreDefault3(){restoreSnapshotData(default3Snapshot,'DEFAULT 3')}
+function randomizeDefaultSampleSelection(){
+  const mats=[...MATERIALS.values()];
+  if(!mats.length)return;
+  const count=Math.min(mats.length,1+Math.floor(rand()*3));
+  const pool=[...mats];
+  const chosen=new Set();
+  while(chosen.size<count&&pool.length){
+    const i=Math.floor(rand()*pool.length);
+    const [m]=pool.splice(i,1);
+    if(m)chosen.add(m.id);
+  }
+  for(const m of mats)m.enabled=chosen.has(m.id);
+  const activeGroups=new Set(mats.filter(m=>chosen.has(m.id)).map(m=>m.groupId));
+  for(const g of GROUPS.values())g.active=activeGroups.has(g.id);
+  renderGroups();
+}
+function restoreDefault1(){restoreSnapshotData(makeDefault1Snapshot(),'DEFAULT 1');randomizeDefaultSampleSelection()}
+function restoreDefault2(){restoreSnapshotData(default2Snapshot,'DEFAULT 2');randomizeDefaultSampleSelection()}
+function restoreDefault3(){restoreSnapshotData(default3Snapshot,'DEFAULT 3');randomizeDefaultSampleSelection()}
 $('#default1Snapshot')?.addEventListener('click',restoreDefault1);$('#default2Snapshot')?.addEventListener('click',restoreDefault2);$('#default3Snapshot')?.addEventListener('click',restoreDefault3);
 
 function bindSnapshotButtons(){
