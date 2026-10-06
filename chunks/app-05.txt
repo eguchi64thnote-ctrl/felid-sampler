@@ -6,7 +6,7 @@ $('#rhythmToggle').onclick=toggleRhythm;$('#rhythmRandom').onclick=rhythmRandomM
 
 // ---------- audio ----------
 let ctx=null, master=null, compressor=null, liveMakeupGain=null, finalLimiter=null, finalSafetyClip=null, analyser=null, recordDest=null, dryGain=null, ambientBus=null, rhythmSampleBus=null, eightOhEightBus=null, rhythmDelaySend=null, rhythmReverbSend=null, delayNode=null, delayGain=null, feedbackGain=null, convolver=null, reverbGain=null, noiseBuffer=null;
-const rhythmRoleBuses={kick:null,snare:null,hat:null,perc:null},e808RoleBuses={kick:null,snare:null,hat:null,perc:null,bass:null};
+const rhythmRoleBuses={kick:null,snare:null,hat:null,perc:null},e808RoleBuses={kick:null,snare:null,zap:null,hat:null,perc:null,bass:null};
 let buffers=new Array(TOTAL).fill(null), decodedCount=0, decoding=false, running=false, scheduler=null, backgroundDecodeStarted=false;
 let eventId=0, evolving=true, lastTrack=null;
 const layers=Array.from({length:4},(_,i)=>({next:0,count:0,sample:-1,anchor:rand(),factor:[1,2.1,4.6,9.4][i],dur:[.65,1.0,1.55,2.3][i]}));
@@ -28,7 +28,7 @@ function initAudio(){if(ctx)return ctx;const AudioCtx=window.AudioContext||windo
   analyser=ctx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.84;recordDest=ctx.createMediaStreamDestination();
   dryGain=ctx.createGain();ambientBus=ctx.createGain();rhythmSampleBus=ctx.createGain();eightOhEightBus=ctx.createGain();rhythmDelaySend=ctx.createGain();rhythmReverbSend=ctx.createGain();delayNode=ctx.createDelay(2.5);delayGain=ctx.createGain();feedbackGain=ctx.createGain();convolver=ctx.createConvolver();reverbGain=ctx.createGain();convolver.buffer=makeImpulse();noiseBuffer=makeNoise(1.2);
   ambientBus.connect(dryGain);ambientBus.connect(delayNode);ambientBus.connect(convolver);
-  for(const role of ['kick','snare','hat','perc']){rhythmRoleBuses[role]=ctx.createGain();rhythmRoleBuses[role].connect(rhythmSampleBus);e808RoleBuses[role]=ctx.createGain();e808RoleBuses[role].connect(eightOhEightBus)}e808RoleBuses.bass=ctx.createGain();e808RoleBuses.bass.connect(eightOhEightBus);
+  for(const role of ['kick','snare','hat','perc']){rhythmRoleBuses[role]=ctx.createGain();rhythmRoleBuses[role].connect(rhythmSampleBus);e808RoleBuses[role]=ctx.createGain();e808RoleBuses[role].connect(eightOhEightBus)}e808RoleBuses.zap=ctx.createGain();e808RoleBuses.zap.connect(eightOhEightBus);e808RoleBuses.bass=ctx.createGain();e808RoleBuses.bass.connect(eightOhEightBus);
   rhythmSampleBus.connect(dryGain);rhythmSampleBus.connect(rhythmDelaySend).connect(delayNode);rhythmSampleBus.connect(rhythmReverbSend).connect(convolver);eightOhEightBus.connect(dryGain);
   dryGain.connect(compressor);delayNode.connect(delayGain).connect(compressor);delayNode.connect(feedbackGain).connect(delayNode);convolver.connect(reverbGain).connect(compressor);
   compressor.connect(master);

@@ -124,7 +124,7 @@ function makeMixerControl(id,c,masterStrip=false){
   wrap.append(top,makeRandomRangeBar('m',id,c,mixerRandomRanges,input,()=>mixerState[id],setValue),meter);return wrap
 }
 const mixerEl=$('#mixerControls');['master','sampleRhythm','kick','snare','hat','perc'].forEach((id,ix)=>mixerEl.appendChild(makeMixerControl(id,mixerConfigs[id],id==='master')));
-const e808El=$('#eightOhEightControls');['e808mix','e808kick','e808snare','e808hat','e808perc','e808bass','bassAttack','bassRelease','bassTone','bassGap'].forEach((id,ix)=>e808El.appendChild(makeMixerControl(id,mixerConfigs[id],id==='e808mix')));
+const e808El=$('#eightOhEightControls');['e808mix','e808kick','e808snare','e808zap','e808hat','e808perc','e808bass','bassAttack','bassRelease','bassTone','bassGap'].forEach((id,ix)=>e808El.appendChild(makeMixerControl(id,mixerConfigs[id],id==='e808mix')));
 
 function syncMixerControl(id){const c=mixerConfigs[id],el=$('#mp_'+id),v=$('#mv_'+id);if(el)el.value=Math.round(toNorm(mixerState[id],c)*1000);if(v)v.textContent=fmt(mixerState[id],c)}
 function syncRhythmControl(id){const c=rhythmConfigs[id],el=$('#rp_'+id),v=$('#rv_'+id);if(el)el.value=Math.round(toNorm(rhythmState[id],c)*1000);if(v)v.textContent=fmt(rhythmState[id],c)}
