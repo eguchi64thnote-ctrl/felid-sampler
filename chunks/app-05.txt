@@ -22,7 +22,19 @@ function initAudio(){if(ctx)return ctx;const AudioCtx=window.AudioContext||windo
   ambientBus.connect(dryGain);ambientBus.connect(delayNode);ambientBus.connect(convolver);
   for(const role of ['kick','snare','hat','perc']){rhythmRoleBuses[role]=ctx.createGain();rhythmRoleBuses[role].connect(rhythmSampleBus);e808RoleBuses[role]=ctx.createGain();e808RoleBuses[role].connect(eightOhEightBus)}e808RoleBuses.bass=ctx.createGain();e808RoleBuses.bass.connect(eightOhEightBus);
   rhythmSampleBus.connect(dryGain);rhythmSampleBus.connect(rhythmDelaySend).connect(delayNode);rhythmSampleBus.connect(rhythmReverbSend).connect(convolver);eightOhEightBus.connect(dryGain);
-  dryGain.connect(compressor);delayNode.connect(delayGain).connect(compressor);delayNode.connect(feedbackGain).connect(delayNode);convolver.connect(reverbGain).connect(compressor);compressor.connect(master).connect(analyser).connect(ctx.destination);master.connect(recordDest);applyGlobals();return ctx;
+  dryGain.connect(compressor);delayNode.connect(delayGain).connect(compressor);delayNode.connect(feedbackGain).connect(delayNode);convolver.connect(reverbGain).connect(compressor);compressor.connect(master).connect(analyser).connect(ctx.destination);master.connect(recordDest);
+  window.feLidLiveBus={
+    version:1,
+    get context(){return ctx},
+    get analyser(){return analyser},
+    get stream(){return recordDest?.stream||null},
+    get master(){return master},
+    get running(){return !!running},
+    start:()=>start(),
+    stop:()=>stop()
+  };
+  window.dispatchEvent(new CustomEvent('felid-live-bus-ready'));
+  applyGlobals();return ctx;
 }
 function base64ToArrayBuffer(s){const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u.buffer}
 async function decodeOne(i){if(buffers[i])return true;const d=SAMPLE_DATA[i];if(!d)return false;try{let ab;if(d.data){ab=base64ToArrayBuffer(d.data);d.data=null}else if(d.url){const r=await fetch(d.url,{cache:'force-cache'});if(!r.ok)throw new Error('HTTP '+r.status+' '+d.url);ab=await r.arrayBuffer()}else{return false}buffers[i]=await ctx.decodeAudioData(ab);decodedCount++;updateLoadCount();return true}catch(e){console.error('decode',i,e);return false}}
