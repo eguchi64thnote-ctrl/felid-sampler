@@ -6,25 +6,32 @@
 <meta name="theme-color" content="#090909" />
 <title>FeLid Audio Reactive Video Lab</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#090909;color:#eee;font-family:system-ui,-apple-system,sans-serif;padding:18px}.wrap{max-width:880px;margin:auto}h1{font-size:22px;margin:0 0 6px}.sub{color:#888;font-size:13px;line-height:1.5;margin-bottom:18px}.panel{background:#111;border:1px solid #292929;border-radius:14px;padding:14px;margin:12px 0}.row{display:grid;gap:10px}.row2{grid-template-columns:1fr 1fr}.label{font-size:12px;color:#aaa;margin-bottom:6px}.file{display:block;border:1px dashed #444;border-radius:10px;padding:12px;background:#0c0c0c}.file input{width:100%}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}button,a.btn{appearance:none;border:1px solid #3a3a3a;background:#161616;color:#eee;border-radius:10px;padding:11px 14px;font-weight:600;text-decoration:none}button.primary{background:#e8ffc8;color:#111;border-color:#e8ffc8}button:disabled{opacity:.35}.status{font-size:12px;color:#aaa;margin-top:9px;min-height:18px}.stage{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:9/16;max-height:70vh;margin:auto}.stage.landscape{aspect-ratio:16/9}.stage canvas{width:100%;height:100%;display:block}.hud{position:absolute;left:10px;bottom:10px;font-size:10px;color:#ddd;background:#0008;padding:6px 8px;border-radius:8px}.controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.control{background:#0c0c0c;border:1px solid #242424;border-radius:10px;padding:10px}.control label{display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-bottom:6px}.control input{width:100%}.thumbs{display:flex;gap:6px;overflow:auto;padding-top:8px}.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #333}.note{font-size:11px;color:#777;line-height:1.55}.download{display:none;margin-top:12px}.download.show{display:inline-block}@media(min-width:700px){.row.main{grid-template-columns:320px 1fr;align-items:start}.stage{max-height:none}.controls{grid-template-columns:repeat(4,minmax(0,1fr))}}
+*{box-sizing:border-box}body{margin:0;background:#090909;color:#eee;font-family:system-ui,-apple-system,sans-serif;padding:18px}.wrap{max-width:980px;margin:auto}h1{font-size:22px;margin:0 0 6px}.sub{color:#888;font-size:13px;line-height:1.5;margin-bottom:18px}.panel{background:#111;border:1px solid #292929;border-radius:14px;padding:14px;margin:12px 0}.row{display:grid;gap:10px}.label{font-size:12px;color:#aaa;margin-bottom:6px}.file{display:block;border:1px dashed #444;border-radius:10px;padding:12px;background:#0c0c0c}.file input{width:100%}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}button,a.btn,select{appearance:none;border:1px solid #3a3a3a;background:#161616;color:#eee;border-radius:10px;padding:11px 14px;font-weight:600;text-decoration:none}button.primary{background:#e8ffc8;color:#111;border-color:#e8ffc8}button.active{border-color:#dfffb5;color:#dfffb5}button:disabled{opacity:.35}.status{font-size:12px;color:#aaa;margin-top:9px;min-height:18px}.segment{font-size:12px;color:#dfffb5;margin-top:10px;padding:10px;border:1px solid #28331f;background:#0b1008;border-radius:10px}.stage{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:9/16;max-height:76vh;margin:auto}.stage canvas{width:100%;height:100%;display:block}.hud{position:absolute;left:10px;bottom:10px;font-size:10px;color:#ddd;background:#0008;padding:6px 8px;border-radius:8px;max-width:86%}.controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.control{background:#0c0c0c;border:1px solid #242424;border-radius:10px;padding:10px}.control label{display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-bottom:6px}.control input,.control select{width:100%}.thumbs{display:flex;gap:6px;overflow:auto;padding-top:8px}.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #333}.note{font-size:11px;color:#777;line-height:1.6}.download{display:none;margin-top:12px}.download.show{display:inline-block}.badge{font-size:10px;color:#111;background:#dfffb5;padding:3px 6px;border-radius:999px;margin-left:6px}.modeLine{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.modeLine strong{font-size:12px;color:#aaa}.progress{height:4px;background:#222;border-radius:999px;overflow:hidden;margin-top:10px}.progress>i{display:block;height:100%;width:0;background:#dfffb5}@media(min-width:760px){.row.main{grid-template-columns:360px 1fr;align-items:start}.stage{max-height:none}.controls{grid-template-columns:repeat(4,minmax(0,1fr))}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>FeLid Audio Reactive Video Lab</h1>
-  <div class="sub">WAV 1曲 + iPhone写真複数枚 → 音に反応して変化する映像を生成する実験版</div>
+  <h1>FeLid Audio Reactive Video Lab <span class="badge">STORY</span></h1>
+  <div class="sub">WAV + iPhone写真 → 音の展開を解析して最適な30秒を自動抽出し、9:16のレイヤーコラージュ動画を生成</div>
 
   <div class="row main">
     <div>
       <div class="panel">
-        <div class="label">1. WAVを選択</div>
+        <div class="modeLine"><strong>MODE</strong><button id="storyModeBtn" class="active">STORY 30s</button></div>
+
+        <div class="label" style="margin-top:14px">1. WAVを選択</div>
         <label class="file"><input id="audioInput" type="file" accept="audio/wav,audio/*"></label>
-        <div class="label" style="margin-top:12px">2. 写真を複数選択</div>
+        <div id="segmentInfo" class="segment">WAVを選ぶと30秒区間を自動解析します。</div>
+        <div class="progress"><i id="analysisProgress"></i></div>
+        <div class="actions"><button id="repickBtn" disabled>RE-PICK 30s</button></div>
+
+        <div class="label" style="margin-top:14px">2. 写真を複数選択</div>
         <label class="file"><input id="imageInput" type="file" accept="image/*" multiple></label>
         <div id="thumbs" class="thumbs"></div>
+
         <div class="actions">
-          <button id="previewBtn" class="primary" disabled>PREVIEW</button>
-          <button id="recordBtn" disabled>RECORD VIDEO</button>
+          <button id="previewBtn" class="primary" disabled>PREVIEW 30s</button>
+          <button id="recordBtn" disabled>RECORD STORY</button>
           <button id="stopBtn" disabled>STOP</button>
         </div>
         <div id="status" class="status">WAVと写真を選択してください。</div>
@@ -33,16 +40,18 @@
 
       <div class="panel">
         <div class="controls">
-          <div class="control"><label><span>PHOTO CHANGE</span><span id="changeOut">8.0s</span></label><input id="change" type="range" min="2" max="20" step="0.5" value="8"></div>
-          <div class="control"><label><span>ZOOM RESPONSE</span><span id="zoomOut">36%</span></label><input id="zoom" type="range" min="0" max="100" value="36"></div>
-          <div class="control"><label><span>BRIGHTNESS RESPONSE</span><span id="brightOut">30%</span></label><input id="bright" type="range" min="0" max="100" value="30"></div>
-          <div class="control"><label><span>GLITCH / SHAKE</span><span id="shakeOut">12%</span></label><input id="shake" type="range" min="0" max="100" value="12"></div>
+          <div class="control"><label><span>COLLAGE INTENSITY</span><span id="intensityOut">62%</span></label><input id="intensity" type="range" min="0" max="100" value="62"></div>
+          <div class="control"><label><span>MAX LAYERS</span><span id="layersOut">7</span></label><input id="maxLayers" type="range" min="3" max="10" value="7"></div>
+          <div class="control"><label><span>ZOOM RESPONSE</span><span id="zoomOut">38%</span></label><input id="zoom" type="range" min="0" max="100" value="38"></div>
+          <div class="control"><label><span>GLITCH / SHAKE</span><span id="shakeOut">10%</span></label><input id="shake" type="range" min="0" max="100" value="10"></div>
         </div>
-        <div class="actions">
-          <button id="portraitBtn">9:16</button>
-          <button id="landscapeBtn">16:9</button>
-          <button id="randomizeBtn">RANDOMIZE LOOK</button>
+        <div class="controls" style="margin-top:10px">
+          <div class="control"><label><span>TRANSITION STYLE</span><span></span></label><select id="transitionStyle"><option value="soft">SOFT</option><option value="dynamic">DYNAMIC</option><option value="sparse">SPARSE</option></select></div>
+          <div class="control"><label><span>BRIGHTNESS RESPONSE</span><span id="brightOut">26%</span></label><input id="bright" type="range" min="0" max="100" value="26"></div>
+          <div class="control"><label><span>TRAIL / AFTERIMAGE</span><span id="trailOut">18%</span></label><input id="trail" type="range" min="0" max="100" value="18"></div>
+          <div class="control"><label><span>BLUR ENTRY</span><span id="blurOut">24%</span></label><input id="blur" type="range" min="0" max="100" value="24"></div>
         </div>
+        <div class="actions"><button id="randomizeBtn">RANDOMIZE LOOK</button></div>
       </div>
     </div>
 
@@ -55,7 +64,7 @@
   </div>
 
   <div class="panel note">
-    写真ライブラリ全体を自動で読み取ることはできないため、最初にiPhoneの写真選択画面から複数枚選んでください。選んだ写真の中からはランダムに切り替わります。音量でズーム、低域で揺れ、高域で明暗が変化します。録画形式は端末が対応するMediaRecorder形式を自動選択します。
+    STORY MODEは常に9:16 / 1080×1920 / 30秒です。WAV全体から、音量変化・アタック・高域イベント・静寂のバランスを評価して30秒を自動抽出します。映像は背景1枚を基礎に、ビートや効果音の瞬間に写真が左上・中央・右下などへ重なり、サイズ・回転・透明度も音に応じて変化します。
   </div>
 </div>
 <script src="/video-lab.js" defer></script>
