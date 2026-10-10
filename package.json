@@ -4,6 +4,8 @@
   "type": "module",
   "dependencies": {
     "@vercel/blob": "^2.0.0",
-    "jose": "^6.1.0"
+    "jose": "^6.1.0",
+    "@aws-sdk/client-s3": "^3.800.0",
+    "@aws-sdk/s3-request-presigner": "^3.800.0"
   }
 }
