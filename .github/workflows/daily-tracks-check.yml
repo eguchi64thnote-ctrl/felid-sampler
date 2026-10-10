@@ -31,7 +31,5 @@ jobs:
           node --check scripts/daily-generate.mjs
           node --check scripts/migrate-blob-to-r2.mjs
           node --check scripts/test-wav-encryption.mjs
-          node --check api/purge-felid-blob.js
-          node --check scripts/purge-felid-blob.mjs
       - name: Check encrypted WAV can be restored and rejects tampering
         run: node scripts/test-wav-encryption.mjs
