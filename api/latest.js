@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     });
     const includeMetadata = req.query.all === '1';
     const matches = blobs
-      .filter(b => includeMetadata || b.pathname.endsWith('.wav'))
+      .filter(b => includeMetadata || /\.(?:mp3|wav)$/i.test(b.pathname))
       .sort((a, b) => a.pathname.localeCompare(b.pathname));
     const files = [];
     for (const file of matches) {
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         url,
       });
     }
-    return res.status(200).json({ date, count: files.filter(f => f.name.endsWith('.wav')).length, files, unavailable });
+    return res.status(200).json({ date, count: new Set(files.filter(f => /\.(?:mp3|wav)$/i.test(f.name)).map(f => f.pathname.replace(/\.(?:mp3|wav)$/i, ''))).size, files, unavailable });
   } catch (error) {
     console.error('Daily tracks lookup failed:', error);
     return res.status(503).json({ error: 'Archive storage temporarily unavailable' });

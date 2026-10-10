@@ -23,11 +23,11 @@ export default async function handler(req, res) {
     const { pathname, contentType, oidc } = body;
     if (!pathname || !oidc) return res.status(400).json({ error: 'Missing fields' });
     if (!pathname.startsWith('daily/')) return res.status(400).json({ error: 'Invalid pathname' });
-    const allowed = ['audio/wav', 'application/json'];
+    const allowed = ['audio/wav', 'audio/mpeg', 'application/json'];
     if (!allowed.includes(contentType)) return res.status(400).json({ error: 'Invalid content type' });
     await verifyGitHubOidc(oidc);
 
-    const max = contentType === 'audio/wav' ? 64 * 1024 * 1024 : 2 * 1024 * 1024;
+    const max = contentType === 'audio/wav' ? 64 * 1024 * 1024 : contentType === 'audio/mpeg' ? 16 * 1024 * 1024 : 2 * 1024 * 1024;
     const validUntil = Date.now() + 15 * 60 * 1000;
     const token = await issueSignedToken({
       pathname,
