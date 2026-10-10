@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'">
+<title>FeLid — WAVをMacに保存</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:34px 18px;background:#090909;color:#eee;font:15px/1.65 system-ui,-apple-system,sans-serif}
+main{max-width:700px;margin:auto}
+a{color:#dfffb5} h1{font-size:26px;margin:0 0 10px} h2{font-size:16px;margin:26px 0 8px}
+p,li{color:#bbb}
+ol{padding-left:23px}
+.card{background:#141414;border:1px solid #333;border-radius:12px;padding:20px;margin:18px 0}
+#expected{font-family:monospace;word-break:break-all}
+input{width:100%;margin:14px 0;color:#eee}
+button{border:0;background:#ddffb5;color:#101010;border-radius:9px;font-size:15px;font-weight:700;padding:13px 16px;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+#status{margin-top:15px;min-height:20px}
+footer{font-size:12px;color:#777;margin-top:26px}
+</style>
+</head>
+<body><main>
+<a href="/">← FeLid Generator</a>
+<h1>WAVをMacに保存</h1>
+<p>気に入ったトラックのWAVを、暗号化された一時ファイルから復元します。ファイルはこのブラウザ内で復元され、外部サーバーには送信されません。</p>
+<div class="card">
+  <h2>手順</h2>
+  <ol>
+    <li>Daily Tracks Inboxの「① WAV暗号化ZIPを入手」から、GitHubの実行ページを開きます。</li>
+    <li>ページ下部の「Artifacts」にある同じ日付・時間のZIPをダウンロードし、Macで解凍します。GitHubへのログインが必要です。</li>
+    <li>次のファイルを選び、「復元してWAVを保存」をクリックしてください。</li>
+  </ol>
+  <p>選ぶファイル：<strong id="expected">読み込み中…</strong></p>
+  <label for="encrypted">暗号化WAV（.wav.enc）を選択</label>
+  <input id="encrypted" type="file" accept=".enc,application/octet-stream">
+  <button type="button" id="restore" disabled>復元してWAVを保存</button>
+  <p id="status" role="status" aria-live="polite"></p>
+</div>
+<footer>保存用の暗号化ファイルは生成後約24時間で有効期限を迎えます。復元鍵はURLの#以降で受け渡し、ページ読込時にURLから削除します。古いWAVはバックアップが確認されるまで削除しません。</footer>
+</main>
+<script>
+(() => {
+  'use strict';
+  const params = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const keyEncoded = params.get('key') || '';
+  const expectedName = params.get('file') || '';
+  const outputName = params.get('name') || '';
+  history.replaceState(null, '', location.pathname);
+  const expected = document.getElementById('expected');
+  const input = document.getElementById('encrypted');
+  const button = document.getElementById('restore');
+  const status = document.getElementById('status');
+  const valid = /^[A-Za-z0-9_-]{43}$/.test(keyEncoded) &&
+    /^[0-9a-f]{32}\.wav\.enc$/.test(expectedName) &&
+    /^[-.\w]+\.wav$/.test(outputName);
+  expected.textContent = valid ? expectedName : 'リンクの復元情報が不足しています。Daily Tracks Inboxから開き直してください。';
+  button.disabled = !valid;
+
+  button.addEventListener('click', async () => {
+    if (!valid || !input.files.length) {
+      status.textContent = 'ZIPを解凍し、暗号化されたファイルを選択してください。';
+      return;
+    }
+    const file = input.files[0];
+    if (file.name !== expectedName) {
+      status.textContent = '違うトラックのファイルです。表示されたファイル名と一致するものを選択してください。';
+      return;
+    }
+    button.disabled = true;
+    status.textContent = 'WAVを復元中…';
+    try {
+      const encoded = keyEncoded.replace(/-/g, '+').replace(/_/g, '/');
+      const keyBytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+      const key = await crypto.subtle.importKey('raw', keyBytes, {name:'AES-GCM'}, false, ['decrypt']);
+      const data = new Uint8Array(await file.arrayBuffer());
+      const header = new TextDecoder().decode(data.slice(0, 9));
+      if (header !== 'FELIDWAV1' || data.length <= 37) throw new Error('フォーマットが正しくありません。');
+      const iv = data.slice(9, 21), tag = data.slice(21, 37);
+      const ciphertext = data.slice(37);
+      const combined = new Uint8Array(ciphertext.length + tag.length);
+      combined.set(ciphertext);
+      combined.set(tag, ciphertext.length);
+      const pcm = await crypto.subtle.decrypt({name:'AES-GCM',iv,tagLength:128},key,combined);
+      const signature = new TextDecoder().decode(new Uint8Array(pcm).slice(0, 4));
+      if (signature !== 'RIFF') throw new Error('復元されたファイルがWAVではありません。');
+      const url = URL.createObjectURL(new Blob([pcm], {type:'audio/wav'}));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = outputName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      status.textContent = 'WAVを保存しました。Macのダウンロードフォルダを確認してください。';
+    } catch (error) {
+      status.textContent = '復元に失敗しました：' + (error.message || String(error)) +
+        '　正しいファイルを選んでください。';
+    } finally {
+      button.disabled = false;
+    }
+  });
+})();
+</script>
+</body></html>
