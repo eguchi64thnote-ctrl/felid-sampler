@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 const baseUrl = process.env.DAILY_BASE_URL || 'https://karesansui-in-the-air-gnr-mhver.vercel.app';
 const slot = process.env.DAILY_SLOT || (() => {
@@ -46,10 +47,45 @@ function uploadError(stage, status, text) {
   return new Error(stage + ': ' + status + ' ' + text);
 }
 
+const R2_VARS = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME'];
+const r2Present = R2_VARS.filter(key => Boolean(process.env[key]));
+if (r2Present.length > 0 && r2Present.length !== R2_VARS.length) {
+  throw new Error('Incomplete R2 configuration: all four R2_* variables are required.');
+}
+const r2Ready = r2Present.length === R2_VARS.length;
+const r2 = r2Ready ? new S3Client({
+  region: 'auto',
+  endpoint: 'https://' + process.env.R2_ACCOUNT_ID + '.r2.cloudflarestorage.com',
+  forcePathStyle: true,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+  },
+}) : null;
+
+// Validate the destination before spending minutes rendering three tracks.
+// Never print credentials or private audio URLs in GitHub Actions logs.
+if (r2Ready) {
+  await r2.send(new ListObjectsV2Command({
+    Bucket: process.env.R2_BUCKET_NAME, Prefix: 'daily/_health/', MaxKeys: 1,
+  }));
+}
+console.log('Daily Tracks archive backend: ' + (r2Ready ? 'Cloudflare R2 (private)' : 'legacy Vercel Blob'));
+
 async function uploadFile(filePath, date) {
   const name = path.basename(filePath);
   const contentType = name.endsWith('.wav') ? 'audio/wav' : 'application/json';
   const pathname = 'daily/' + date + '/' + slot + '/' + name;
+  const bytes = await readFile(filePath);
+
+  if (r2Ready) {
+    await r2.send(new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME, Key: pathname,
+      ContentType: contentType, Body: bytes, ContentLength: bytes.length,
+    }));
+    return pathname;
+  }
+
   const oidc = await getFreshOidc();
   const sign = await fetch(baseUrl + '/api/sign-upload', {
     method: 'POST',
@@ -61,7 +97,6 @@ async function uploadFile(filePath, date) {
     throw uploadError('Sign upload failed', sign.status, detail);
   }
   const { presignedUrl } = await sign.json();
-  const bytes = await readFile(filePath);
   const put = await fetch(presignedUrl, {
     method: 'PUT',
     headers: { 'content-type': contentType },

@@ -1,4 +1,4 @@
-import { list, issueSignedToken, presignUrl } from '@vercel/blob';
+import { listArchive, signedArchiveUrl } from '../lib/daily-storage.js';
 
 function tokyoDate() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -14,16 +14,6 @@ function addDays(date, days) {
     timeZone: 'Asia/Tokyo',
     year: 'numeric', month: '2-digit', day: '2-digit'
   }).format(d);
-}
-async function listAll(prefix) {
-  const blobs=[];
-  let cursor;
-  do {
-    const page=await list({prefix,limit:1000,cursor});
-    blobs.push(...page.blobs);
-    cursor=page.cursor;
-  } while(cursor);
-  return blobs;
 }
 function shell(body,title='FeLid Daily Tracks Inbox'){
   return `<!doctype html><html lang="ja"><head>
@@ -50,7 +40,7 @@ export default async function handler(req, res) {
 
     // Archive home: date folders, newest first.
     if (!dateParam) {
-      const all=await listAll('daily/');
+      const { blobs: all, unavailable } = await listArchive('daily/');
       const days=new Map();
       for(const blob of all){
         const m=blob.pathname.match(/^daily\/(\d{4}-\d{2}-\d{2})\//);
@@ -76,12 +66,13 @@ export default async function handler(req, res) {
         <header><h1>FeLid Daily Tracks Inbox</h1><div class="meta">Archive · <span class="accent">${sorted.length} day${sorted.length===1?'':'s'}</span> · private</div></header>
         <div class="toolbar"><a class="button" href="/inbox?key=${keyQ}&date=${tokyoDate()}">TODAY</a><a class="button" href="/video-lab">VIDEO LAB</a></div>
         <div class="days">${cards}</div>
+        ${unavailable.length ? '<div class="foot">一部の旧アーカイブを現在取得できません。復旧後に再表示されます。</div>' : ''}
         <div class="foot">過去ファイルは自動削除しません。日付をタップすると、その日の06:00 / 12:00 / 16:00に生成されたA・B・Cを確認できます。</div>
       `));
     }
 
     const date=dateParam;
-    const blobs=await listAll('daily/'+date+'/');
+    const { blobs, unavailable }=await listArchive('daily/'+date+'/');
     const slotOrder=['0600','1200','1600'];
     const profileOrder=['AmbientSpace','GrooveRhythm','ExperimentalMutation'];
     const profileLetter={AmbientSpace:'A',GrooveRhythm:'B',ExperimentalMutation:'C'};
@@ -89,7 +80,7 @@ export default async function handler(req, res) {
 
     for(const blob of blobs.filter(b=>b.pathname.endsWith('.wav'))){
       const name=blob.pathname.split('/').pop()||'';
-      const slotMatch=blob.pathname.match(/\/daily\/[^/]+\/(0600|1200|1600)\//)||name.match(/_(0600|1200|1600)_/);
+      const slotMatch=blob.pathname.match(/^daily\/[^/]+\/(0600|1200|1600)\//)||name.match(/_(0600|1200|1600)_/);
       if(!slotMatch)continue;
       let profile=profileOrder.find(p=>name.includes('_'+p+'_'));
       let letter=profile?profileLetter[profile]:null;
@@ -98,10 +89,14 @@ export default async function handler(req, res) {
         if(legacy){letter=legacy[1].toUpperCase();profile=letter==='A'?'AmbientSpace':letter==='B'?'GrooveRhythm':'ExperimentalMutation'}
       }
       if(!letter||!profile)continue;
-      const slot=slotMatch[1],validUntil=Date.now()+24*60*60*1000;
-      const token=await issueSignedToken({pathname:blob.pathname,operations:['get'],validUntil});
-      const signed=await presignUrl(token,{operation:'get',pathname:blob.pathname,access:'private',validUntil});
-      found.set(slot+':'+letter,{name,url:signed.presignedUrl,slot,letter,profile});
+      const slot=slotMatch[1];
+      try {
+        const url=await signedArchiveUrl(blob);
+        found.set(slot+':'+letter,{name,url,slot,letter,profile});
+      } catch (error) {
+        console.error('Could not sign archived track:', blob.pathname, error);
+        if (!unavailable.includes(blob.source)) unavailable.push(blob.source);
+      }
     }
 
     const rows=[];
@@ -128,10 +123,11 @@ export default async function handler(req, res) {
         <a class="button" href="/inbox?key=${keyQ}&date=${next}">NEXT</a>
       </div>
       ${sections}
-      <div class="foot">06:00 / 12:00 / 16:00 に各3曲を自動生成。1日9曲を日付単位でまとめて表示します。WAVはこの日付アーカイブに残り続けます。署名URLはページを開いた時点から24時間有効です。</div>
+      ${unavailable.length ? '<div class="foot">一部の旧アーカイブはストレージの利用制限により現在表示できません。</div>' : ''}
+      <div class="foot">06:00 / 12:00 / 16:00 に各3曲を自動生成。1日9曲を日付単位でまとめて表示します。WAVはこの日付アーカイブに残り続けます。試聴・ダウンロード用URLはページを開いてから6時間有効です。</div>
     `));
   } catch(e) {
     console.error(e);
-    return res.status(500).send('Archive lookup failed');
+    return res.status(503).send('Archive storage is temporarily unavailable');
   }
 }
