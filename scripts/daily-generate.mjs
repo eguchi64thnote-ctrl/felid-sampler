@@ -1,6 +1,9 @@
 import { chromium } from 'playwright';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { randomBytes, createCipheriv, createHash } from 'node:crypto';
 import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 const baseUrl = process.env.DAILY_BASE_URL || 'https://karesansui-in-the-air-gnr-mhver.vercel.app';
@@ -24,7 +27,10 @@ async function getFreshOidc() {
   throw new Error('Missing GitHub OIDC token source');
 }
 
+const execFileAsync = promisify(execFile);
 const outDir = path.resolve('daily-output');
+const encryptedDir = path.resolve('daily-output-encrypted');
+await mkdir(encryptedDir, { recursive: true });
 await mkdir(outDir, { recursive: true });
 
 function tokyoDate() {
@@ -74,7 +80,7 @@ console.log('Daily Tracks archive backend: ' + (r2Ready ? 'Cloudflare R2 (privat
 
 async function uploadFile(filePath, date) {
   const name = path.basename(filePath);
-  const contentType = name.endsWith('.wav') ? 'audio/wav' : 'application/json';
+  const contentType = name.endsWith('.wav') ? 'audio/wav' : name.endsWith('.mp3') ? 'audio/mpeg' : 'application/json';
   const pathname = 'daily/' + date + '/' + slot + '/' + name;
   const bytes = await readFile(filePath);
 
@@ -154,18 +160,66 @@ for (let i = 0; i < 3; i++) {
 await browser.close();
 
 const date = tokyoDate();
+const runId = process.env.GITHUB_RUN_ID || '';
+if (!/^\d+$/.test(runId)) throw new Error('GitHub Actions run id is required to offer temporary WAV downloads');
+
+// MP3 copies are stored for preview. The original WAVs are NOT uploaded to
+// Blob, eliminating the largest recurring storage cost.
+const outputFiles = await readdir(outDir);
+const wavFiles = outputFiles.filter(name => name.toLowerCase().endsWith('.wav')).sort();
+if (wavFiles.length !== 3) throw new Error('Expected exactly 3 rendered WAV files');
+const mp3Files = [];
+const encryptedFiles = [];
+const artifactName = 'felid-wav-' + date + '-' + slot + '-' + runId;
+
+for (const wavName of wavFiles) {
+  const wavPath = path.join(outDir, wavName);
+  const mp3Name = wavName.replace(/\.wav$/i, '.mp3');
+  await execFileAsync('ffmpeg', [
+    '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
+    '-i', wavPath, '-vn', '-codec:a', 'libmp3lame',
+    '-ar', '44100', '-ac', '2', '-b:a', '96k',
+    path.join(outDir, mp3Name),
+  ], { timeout: 120000 });
+  mp3Files.push(mp3Name);
+
+  // GitHub repo is public: artifacts MUST contain ciphertext only.
+  // A random per-track key is stored only in the private Blob manifest.
+  const key = randomBytes(32);
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const wav = await readFile(wavPath);
+  const payload = Buffer.concat([cipher.update(wav), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  const encryptedName = randomBytes(16).toString('hex') + '.wav.enc';
+  const encrypted = Buffer.concat([Buffer.from('FELIDWAV1'), iv, tag, payload]);
+  await writeFile(path.join(encryptedDir, encryptedName), encrypted);
+  encryptedFiles.push({
+    wavName, encryptedName, key: key.toString('base64url'),
+    sha256: createHash('sha256').update(wav).digest('hex'),
+  });
+}
+
 const uploaded = [];
-for (const name of await readdir(outDir)) {
+for (const name of [...mp3Files, ...outputFiles.filter(f => f.endsWith('_params.json'))]) {
   uploaded.push(await uploadFile(path.join(outDir, name), date));
 }
+const privateAccessPath = path.join(outDir, date + '_' + slot + '_wav-access.json');
+await writeFile(privateAccessPath, JSON.stringify({
+  version: 1, runId, artifactName,
+  expiresAfterHours: 24,
+  files: encryptedFiles,
+}, null, 2));
+uploaded.push(await uploadFile(privateAccessPath, date));
+
 const manifestPath = path.join(outDir, date + '_' + slot + '_manifest.json');
 await writeFile(manifestPath, JSON.stringify({
-  date,
-  slot,
-  generatedAt: new Date().toISOString(),
-  files: uploaded,
-  source: baseUrl,
+  date, slot, generatedAt: new Date().toISOString(),
+  previewFormat: 'MP3 96kbps stereo',
+  wavAvailability: 'Encrypted GitHub Actions artifact for approximately 24 hours',
+  files: uploaded, source: baseUrl,
 }, null, 2));
 await uploadFile(manifestPath, date);
 
-console.log(JSON.stringify({ date, slot, uploaded }, null, 2));
+// Do not log the encryption keys or the private signed URLs.
+console.log(JSON.stringify({ date, slot, uploaded, artifactName, encryptedWavs: encryptedFiles.length }, null, 2));
