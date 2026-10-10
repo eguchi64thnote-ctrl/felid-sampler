@@ -1,0 +1,30 @@
+name: Daily Tracks source checks
+
+on:
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'lib/**'
+      - 'scripts/**'
+      - 'package.json'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Check JavaScript syntax
+        run: |
+          node --check lib/daily-storage.js
+          node --check api/inbox.js
+          node --check api/latest.js
+          node --check scripts/daily-generate.mjs
+          node --check scripts/migrate-blob-to-r2.mjs
