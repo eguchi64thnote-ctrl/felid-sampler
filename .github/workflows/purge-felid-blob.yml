@@ -1,0 +1,40 @@
+name: One-Time FeLid Blob Store Purge
+
+# Daily Tracks automatic generation has been paused separately.
+# This workflow only removes stored files from the connected FeLid Blob store.
+# Once the store is empty, the job disables this workflow automatically.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/purge-felid-blob.yml'
+  schedule:
+    - cron: '17 0,4,8,12,16,20 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  actions: write
+
+concurrency:
+  group: one-time-felid-blob-purge
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Let the new Vercel endpoint deploy
+        if: github.event_name == 'push'
+        run: sleep 45
+      - name: Empty the FeLid Vercel Blob store without touching app code
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/purge-felid-blob.mjs
