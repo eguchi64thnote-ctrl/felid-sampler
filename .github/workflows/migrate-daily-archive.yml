@@ -1,0 +1,38 @@
+name: Migrate FeLid Daily Tracks Archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: First archive date (YYYY-MM-DD)
+        required: true
+        default: '2026-10-06'
+      through:
+        description: Last archive date (YYYY-MM-DD, blank means today in Tokyo)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Copy original Vercel Blob archives into private R2
+        env:
+          DAILY_BASE_URL: https://karesansui-in-the-air-gnr-mhver.vercel.app
+          DAILY_ACCESS_KEY: ${{ secrets.DAILY_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          MIGRATE_FROM: ${{ inputs.from }}
+          MIGRATE_THROUGH: ${{ inputs.through }}
+        run: node scripts/migrate-blob-to-r2.mjs
