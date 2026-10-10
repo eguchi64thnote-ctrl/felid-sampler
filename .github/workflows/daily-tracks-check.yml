@@ -7,6 +7,7 @@ on:
       - 'lib/**'
       - 'scripts/**'
       - 'package.json'
+      - 'wav-restore.html'
       - '.github/workflows/**'
 
 permissions:
@@ -24,7 +25,11 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check lib/daily-storage.js
+          node --check lib/wav-encryption.js
           node --check api/inbox.js
           node --check api/latest.js
           node --check scripts/daily-generate.mjs
           node --check scripts/migrate-blob-to-r2.mjs
+          node --check scripts/test-wav-encryption.mjs
+      - name: Check encrypted WAV can be restored and rejects tampering
+        run: node scripts/test-wav-encryption.mjs
