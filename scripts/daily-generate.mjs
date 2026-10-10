@@ -3,7 +3,8 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { randomBytes, createCipheriv, createHash } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+import { encryptWav } from '../lib/wav-encryption.js';
 import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 const baseUrl = process.env.DAILY_BASE_URL || 'https://karesansui-in-the-air-gnr-mhver.vercel.app';
@@ -185,18 +186,13 @@ for (const wavName of wavFiles) {
 
   // GitHub repo is public: artifacts MUST contain ciphertext only.
   // A random per-track key is stored only in the private Blob manifest.
-  const key = randomBytes(32);
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', key, iv);
   const wav = await readFile(wavPath);
-  const payload = Buffer.concat([cipher.update(wav), cipher.final()]);
-  const tag = cipher.getAuthTag();
   const encryptedName = randomBytes(16).toString('hex') + '.wav.enc';
-  const encrypted = Buffer.concat([Buffer.from('FELIDWAV1'), iv, tag, payload]);
-  await writeFile(path.join(encryptedDir, encryptedName), encrypted);
+  const sealed = encryptWav(wav);
+  await writeFile(path.join(encryptedDir, encryptedName), sealed.data);
   encryptedFiles.push({
-    wavName, encryptedName, key: key.toString('base64url'),
-    sha256: createHash('sha256').update(wav).digest('hex'),
+    wavName, encryptedName, key: sealed.key,
+    sha256: sealed.sha256,
   });
 }
 
