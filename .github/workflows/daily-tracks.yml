@@ -25,6 +25,8 @@ jobs:
       - run: npm install
       - run: npm install --no-save playwright
       - run: npx playwright install --with-deps chromium
+      - name: Check MP3 encoder
+        run: ffmpeg -hide_banner -version | head -n 1
 
       - name: Get GitHub OIDC token
         id: oidc
@@ -53,3 +55,29 @@ jobs:
           esac
           echo "Generating slot: $DAILY_SLOT"
           node scripts/daily-generate.mjs
+
+      - name: Prepare encrypted artifact identifier
+        id: trackinfo
+        shell: bash
+        run: |
+          echo "date=$(TZ=Asia/Tokyo date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+          case "$SCHEDULE_EXPR" in
+            "0 21 * * *") SLOT=0600 ;;
+            "0 3 * * *") SLOT=1200 ;;
+            "0 7 * * *") SLOT=1600 ;;
+            *) HOUR=$(TZ=Asia/Tokyo date +%H); if [ "$HOUR" -lt 9 ]; then SLOT=0600; elif [ "$HOUR" -lt 15 ]; then SLOT=1200; else SLOT=1600; fi ;;
+          esac
+          echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
+        env:
+          SCHEDULE_EXPR: ${{ github.event.schedule }}
+
+      # GitHub repository is public. Store only AES-256-GCM ciphertext;
+      # never upload WAV or the private per-track keys as workflow artifacts.
+      - name: Offer encrypted WAV archive for one day
+        uses: actions/upload-artifact@v4
+        with:
+          name: felid-wav-${{ steps.trackinfo.outputs.date }}-${{ steps.trackinfo.outputs.slot }}-${{ github.run_id }}
+          path: daily-output-encrypted/*.wav.enc
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
